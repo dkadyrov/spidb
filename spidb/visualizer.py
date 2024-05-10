@@ -7,7 +7,7 @@ from scipy import signal
 from dankpy import colors
 
 # %%
-def waveform_display(db, start, end, sensor, normalize=False, method="datetime"):
+def waveform_display(db, start, end, sensor, normalize=False, time_format="datetime"):
     fig, axs = plt.subplots(
         nrows=8, ncols=1, sharex=True, layout="compressed", figsize=(1.5 * 6, 1.5 * 6)
     )
@@ -57,7 +57,7 @@ def waveform_display(db, start, end, sensor, normalize=False, method="datetime")
 
         ax.get_yaxis().set_label_coords(1.01, 0.6)
 
-        if method == "datetime":
+        if time_format == "datetime":
             ax.plot(a.data.datetime, a.data.signal)
             ax.xaxis.set_ticks(np.arange(a.data.datetime.min(), a.data.datetime.max()))
 
@@ -71,7 +71,7 @@ def waveform_display(db, start, end, sensor, normalize=False, method="datetime")
                 [round(a.data["time [s]"].min()), round(a.data["time [s]"].max())]
             )
 
-    if method == "datetime":
+    if time_format == "datetime":
         fig.supxlabel(f"Time on {a.data.datetime.iloc[0].date()}")
     else:
         fig.supxlabel("Time [s]")
@@ -84,13 +84,14 @@ def spectrogram_display(
     start,
     end,
     sensor,
-    normalize=False,
-    method="datetime",
+    time_format="datetime",
     section="all",
     showscale=False,
+    zmin=-140,
+    zmax=-80
 ):
     if section == "internal":
-        if sensor == "Acoustic":
+        if sensor == "ASPIDS":
             fig, axs = plt.subplots(
                 nrows=4,
                 ncols=1,
@@ -106,12 +107,7 @@ def spectrogram_display(
                 ax = axs[c]
                 a = db.get_audio(start, end, channel=c, sensor=sensor)
 
-                if normalize:
-                    level = 2 * np.median(a.data.signal)
-                    noise = a.data.signal[a.data.signal < level]
-                    a.data.signal = a.data.signal / np.sqrt(np.mean(noise**2))
-
-                if method == "datetime":
+                if time_format == "datetime":
                     times, frequencies, spectrogram = a.spectrogram(
                         window="hann",
                         window_size=1024,
@@ -120,7 +116,7 @@ def spectrogram_display(
                         noverlap=512,
                         method="datetime",
                     )
-                elif method == "seconds":
+                elif time_format == "seconds":
                     times, frequencies, spectrogram = a.spectrogram(
                         window="hann",
                         window_size=1024,
@@ -136,9 +132,6 @@ def spectrogram_display(
                     frequencies.min(),
                     frequencies.max(),
                 ]
-                ax.set_ylabel(f"Ch. {c}")
-                ax.set_ylim([0, 8000])
-                ax.set_yticks([0, 4000, 8000])
                 axi = ax.imshow(
                     spectrogram,
                     extent=extents,
@@ -146,14 +139,12 @@ def spectrogram_display(
                     aspect="auto",
                     origin="lower",
                 )
-                if normalize:
-                    axi.set_clim([-100, -25])
-                else:
-                    axi.set_clim([-140, -80])
+                axi.set_clim([zmin, zmax])
+                ax.set_ylabel(f"Ch. {c}")
                 ax.yaxis.set_label_position("right")
                 # ax.get_yaxis().set_label_coords(1.015, 0.6)
     elif section == "external":
-        if sensor == "Acoustic":
+        if sensor == "ASPIDS":
             fig, axs = plt.subplots(
                 nrows=4,
                 ncols=1,
@@ -168,12 +159,7 @@ def spectrogram_display(
                 ax = axs[c - 4]
                 a = db.get_audio(start, end, channel=c, sensor=sensor)
 
-                if normalize:
-                    level = 2 * np.median(a.data.signal)
-                    noise = a.data.signal[a.data.signal < level]
-                    a.data.signal = a.data.signal / np.sqrt(np.mean(noise**2))
-
-                if method == "datetime":
+                if time_format == "datetime":
                     times, frequencies, spectrogram = a.spectrogram(
                         window="hann",
                         window_size=1024,
@@ -182,7 +168,7 @@ def spectrogram_display(
                         noverlap=512,
                         method="datetime",
                     )
-                elif method == "seconds":
+                elif time_format == "seconds":
                     times, frequencies, spectrogram = a.spectrogram(
                         window="hann",
                         window_size=1024,
@@ -198,9 +184,6 @@ def spectrogram_display(
                     frequencies.min(),
                     frequencies.max(),
                 ]
-                ax.set_ylabel(f"Ch. {c}")
-                ax.set_ylim([0, 8000])
-                ax.set_yticks([0, 4000, 8000])
                 axi = ax.imshow(
                     spectrogram,
                     extent=extents,
@@ -208,10 +191,9 @@ def spectrogram_display(
                     aspect="auto",
                     origin="lower",
                 )
-                if normalize:
-                    axi.set_clim([-100, -25])
-                else:
-                    axi.set_clim([-140, -80])
+
+                axi.set_clim([zmin, zmax])
+                ax.set_ylabel(f"Ch. {c}")
                 ax.yaxis.set_label_position("right")
 
     else:
@@ -219,18 +201,12 @@ def spectrogram_display(
             nrows=8, ncols=1, sharex=True, layout="compressed", figsize=(5.5, 5.5)
         ) 
 
-
         channels = np.arange(0, 8).tolist()
 
         for c in channels:
             a = db.get_audio(start, end, channel=c, sensor=sensor)
 
-            if normalize:
-                level = 2 * np.median(a.data.signal)
-                noise = a.data.signal[a.data.signal < level]
-                a.data.signal = a.data.signal / np.sqrt(np.mean(noise**2))
-
-            if method == "datetime":
+            if time_format == "datetime":
                 times, frequencies, spectrogram = a.spectrogram(
                     window="hann",
                     window_size=1024,
@@ -240,7 +216,7 @@ def spectrogram_display(
                     method="datetime",
                 )
 
-            elif method == "seconds":
+            elif time_format == "seconds":
                 times, frequencies, spectrogram = a.spectrogram(
                     window="hann",
                     window_size=1024,
@@ -253,72 +229,19 @@ def spectrogram_display(
 
             extents = [times.min(), times.max(), frequencies.min(), frequencies.max()]
 
-            if sensor == "Acoustic":
-                if c < 4:
-                    ax = axs[c * 2]
-                    ax.set_ylabel(
-                        f"Ch{c} Piezo", rotation=0, horizontalalignment="left"
-                    )
-                else:
-                    ax = axs[c - (7 - c)]
-                    ax.set_ylabel(
-                        f"Ch{c} Microphone", rotation=0, horizontalalignment="left"
-                    )
-                ax.set_ylim([0, 8000])
-                ax.set_yticks([0, 4000, 8000])
-                axi = ax.imshow(
-                    spectrogram,
-                    extent=extents,
-                    cmap="jet",
-                    aspect="auto",
-                    origin="lower",
-                )
-                if normalize:
-                    axi.set_clim([-100, -25])
-                else:
-                    axi.set_clim([-175, -100])
-            else:
-                ax = axs[c]
-                axi = ax.imshow(
-                    spectrogram,
-                    extent=extents,
-                    cmap="jet",
-                    aspect="auto",
-                    origin="lower",
-                )
-                if c < 6:
-                    ax.set_ylabel(
-                        f"Ch{c} Microwave", rotation=0, horizontalalignment="left"
-                    )
-                    ax.set_ylim([0, 100])
-                    ax.set_yticks([0, 100])
-                    if normalize:
-                        axi.set_clim([-100, -25])
-                    else:
-                        axi.set_clim([-100, -25])
-                else:
-                    if c == 6:
-                        ax.set_ylabel(
-                            f"Ch{c} Microphone", rotation=0, horizontalalignment="left"
-                        )
-                        if normalize:
-                            axi.set_clim([-75, -25])
-                        else:
-                            axi.set_clim([-75, -25])
-                    else:
-                        ax.set_ylabel(
-                            f"Ch{c} Piezo", rotation=0, horizontalalignment="left"
-                        )
-                        if normalize:
-                            axi.set_clim([-50, -25])
-                        else:
-                            axi.set_clim([-75, -25])
-                    ax.set_ylim([0, 1000])
-                    ax.set_yticks([0, 1000])
+            ax = axs[c]
+            axi = ax.imshow(
+                spectrogram,
+                extent=extents,
+                cmap="jet",
+                aspect="auto",
+                origin="lower",
+            )
+            axi.set_clim([zmin, zmax])
             ax.yaxis.set_label_position("right")
-            ax.get_yaxis().set_label_coords(1.01, 0.6)
-
-    if method == "datetime":
+            ax.set_ylabel(f"Ch. {c}")
+            ax.yaxis.set_label_position("right")
+    if time_format == "datetime":
         ax.set_xlim([times.min(), times.max()])
         myFmt = mdates.DateFormatter("%H:%M:%S")
         ax.xaxis.set_major_formatter(myFmt)
@@ -327,7 +250,7 @@ def spectrogram_display(
         ax.set_xlim([round(times.min()), round(times.max())])
         ax.set_xlim([round(times.min()), round(times.max())])
 
-    if method == "datetime":
+    if time_format == "datetime":
         fig.supxlabel(f"Time on {a.data.datetime[0].date()}")
     else:
         fig.supxlabel("Time [s]")
