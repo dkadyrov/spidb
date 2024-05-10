@@ -9,8 +9,8 @@ db = spidb.Database(r"data/spi.db")
 # %%
 acoustic_files = glob.glob(r"data/aspids/**/*.wav", recursive=True)
 
-files = file.metadatas(acoustic_files, extended=True)
-
+files = file.metadatas(acoustic_files, extended=True, stevens=True)
+#%%
 for f, fi in files.iterrows():
     ff = spidb.File(
         filepath=fi.filepath,
@@ -22,12 +22,12 @@ for f, fi in files.iterrows():
         duration=fi.duration,
         number=fi.record_number,
         channel=fi.channel,
-        sensor="Acoustic",
+        sensor="ASPIDS",
     )
 
     db.session.add(ff)
 db.session.commit()
-
+#%%
 log = pd.read_csv(r"data/aspids_log.csv")
 
 log["start"] = log["date"].astype(str) + " " + log["start"].astype(str)
@@ -57,7 +57,7 @@ db.session.commit()
 
 microwave_files = glob.glob(r"data/mspids/**/*.wav", recursive=True)
 
-files = file.metadatas(microwave_files, extended=True)
+files = file.metadatas(microwave_files, extended=True, stevens=True)
 
 for f, fi in files.iterrows():
     ff = spidb.File(
@@ -70,7 +70,7 @@ for f, fi in files.iterrows():
         duration=fi.duration,
         number=fi.record_number,
         channel=fi.channel,
-        sensor="Acoustic",
+        sensor="MSPIDS",
     )
 
     db.session.add(ff)
