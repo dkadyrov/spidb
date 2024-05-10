@@ -7,7 +7,7 @@ from scipy import signal
 from dankpy import colors
 
 # %%
-def waveform_display(db, start, end, sensor, normalize=False, time_format="datetime"):
+def waveform_display(db, start, end, sensor, time_format="datetime", normalize=True):
     fig, axs = plt.subplots(
         nrows=8, ncols=1, sharex=True, layout="compressed", figsize=(1.5 * 6, 1.5 * 6)
     )
@@ -22,40 +22,9 @@ def waveform_display(db, start, end, sensor, normalize=False, time_format="datet
             noise = a.data.signal[a.data.signal < level]
             a.data.signal = a.data.signal / np.sqrt(np.mean(noise**2))
 
-        if sensor == "Acoustic":
-            if c < 4:
-                ax = axs[c * 2]
-                ax.set_ylabel(f"Ch{c} Piezo", rotation=0, horizontalalignment="left")
-            else:
-                ax = axs[c - (7 - c)]
-                ax.set_ylabel(
-                    f"Ch{c} Microphone", rotation=0, horizontalalignment="left"
-                )
-            ax.set_ylim([0, 6000])
-            ax.set_yticks([0, 6000])
-
-        else:
-            ax = axs[c]
-            if c < 6:
-                ax.set_ylabel(
-                    f"Ch{c} Microwave", rotation=0, horizontalalignment="left"
-                )
-                ax.set_ylim([-0.2, 0.2])
-
-            else:
-                if c == 6:
-                    ax.set_ylabel(
-                        f"Ch{c} Microphone", rotation=0, horizontalalignment="left"
-                    )
-                    ax.set_ylim([-1, 1])
-                else:
-                    ax.set_ylabel(
-                        f"Ch{c} Piezo", rotation=0, horizontalalignment="left"
-                    )
-                    ax.set_ylim([-1, 1])
+        ax = axs[c]
+        ax.set_ylabel(f"Ch. {c}")
         ax.yaxis.set_label_position("right")
-
-        ax.get_yaxis().set_label_coords(1.01, 0.6)
 
         if time_format == "datetime":
             ax.plot(a.data.datetime, a.data.signal)
@@ -114,7 +83,7 @@ def spectrogram_display(
                         nperseg=1024,
                         nfft=1024,
                         noverlap=512,
-                        method="datetime",
+                        time_format="datetime",
                     )
                 elif time_format == "seconds":
                     times, frequencies, spectrogram = a.spectrogram(
@@ -123,7 +92,7 @@ def spectrogram_display(
                         nperseg=1024,
                         nfft=1024,
                         noverlap=512,
-                        method="seconds",
+                        time_format="seconds",
                     )
                 spectrogram = 10 * np.log10(np.abs(spectrogram))
                 extents = [
@@ -166,7 +135,7 @@ def spectrogram_display(
                         nperseg=1024,
                         nfft=1024,
                         noverlap=512,
-                        method="datetime",
+                        time_format="datetime",
                     )
                 elif time_format == "seconds":
                     times, frequencies, spectrogram = a.spectrogram(
@@ -175,7 +144,7 @@ def spectrogram_display(
                         nperseg=1024,
                         nfft=1024,
                         noverlap=512,
-                        method="seconds",
+                        time_format="seconds",
                     )
                 spectrogram = 10 * np.log10(np.abs(spectrogram))
                 extents = [
@@ -213,7 +182,7 @@ def spectrogram_display(
                     nperseg=1024,
                     nfft=1024,
                     noverlap=512,
-                    method="datetime",
+                    time_format="datetime",
                 )
 
             elif time_format == "seconds":
@@ -223,7 +192,7 @@ def spectrogram_display(
                     nperseg=1024,
                     nfft=1024,
                     noverlap=512,
-                    method="seconds",
+                    time_format="seconds",
                 )
             spectrogram = 10 * np.log10(np.abs(spectrogram))
 

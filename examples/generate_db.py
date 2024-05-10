@@ -30,9 +30,6 @@ db.session.commit()
 #%%
 log = pd.read_csv(r"data/aspids_log.csv")
 
-log["start"] = log["date"].astype(str) + " " + log["start"].astype(str)
-log["end"] = log["date"].astype(str) + " " + log["end"].astype(str)
-
 log["start"] = pd.to_datetime(log["start"])
 log["end"] = pd.to_datetime(log["end"])
 log["duration"] = log["end"] - log["start"]
@@ -76,10 +73,8 @@ for f, fi in files.iterrows():
     db.session.add(ff)
 db.session.commit()
 
+#%%
 log = pd.read_csv(r"data/mspids_log.csv")
-
-log["start"] = log["date"].astype(str) + " " + log["start"].astype(str)
-log["end"] = log["date"].astype(str) + " " + log["end"].astype(str)
 
 log["start"] = pd.to_datetime(log["start"])
 log["end"] = pd.to_datetime(log["end"])
@@ -98,3 +93,5 @@ for l, row in log.iterrows():
     )
     db.session.add(ll)
 db.session.commit()
+
+# %%
