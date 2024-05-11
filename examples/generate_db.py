@@ -5,8 +5,10 @@ import glob
 import pandas as pd
 
 # %%
+# Location of database. It will be created if it does not exist.
 db = spidb.Database(r"data/spi.db")
 # %%
+# Location of the acoustic files
 acoustic_files = glob.glob(r"data/aspids/**/*.wav", recursive=True)
 
 files = file.metadatas(acoustic_files, extended=True, stevens=True)
@@ -28,6 +30,7 @@ for f, fi in files.iterrows():
     db.session.add(ff)
 db.session.commit()
 #%%
+# Location of the ASPID Log File
 log = pd.read_csv(r"data/aspids_log.csv")
 
 log["start"] = pd.to_datetime(log["start"])
@@ -51,10 +54,10 @@ for l, row in log.iterrows():
 db.session.commit()
 
 #%%
+# Location of the microwave files
+mspids_files = glob.glob(r"data/mspids/**/*.wav", recursive=True)
 
-microwave_files = glob.glob(r"data/mspids/**/*.wav", recursive=True)
-
-files = file.metadatas(microwave_files, extended=True, stevens=True)
+files = file.metadatas(mspids_files, extended=True, stevens=True)
 
 for f, fi in files.iterrows():
     ff = spidb.File(
@@ -74,6 +77,7 @@ for f, fi in files.iterrows():
 db.session.commit()
 
 #%%
+# Location of the MSPID Log File
 log = pd.read_csv(r"data/mspids_log.csv")
 
 log["start"] = pd.to_datetime(log["start"])

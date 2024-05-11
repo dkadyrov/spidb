@@ -9,10 +9,10 @@ plt.style.use("dankpy.styles.neurips")
 # %%
 db = spidb.Database(r"data/spi.db")
 
-logs = db.session.query(spidb.Log).filter(spidb.Log.sensor == "ASPIDS").filter(spidb.Log.target == "Tenebrio molitor").filter(spidb.Log.material == "Rice").all()
-log = logs[1]
+logs = db.session.query(spidb.Log).filter(spidb.Log.sensor == "ASPIDS").filter(spidb.Log.target == "Tribolium confusum").filter(spidb.Log.material == "Flour").all()
+log = logs[-1]
 
-start = log.start + dt.timedelta(seconds=30)
+start = log.start + dt.timedelta(seconds=6.75*60)
 end = start + dt.timedelta(seconds=60)
 #%%
 fig, ax = visualizer.spectrogram_display(db, start=start, end=end, time_format="seconds", section="all", showscale="True", sensor="ASPIDS")
@@ -54,3 +54,10 @@ end = start + dt.timedelta(seconds=60)
 
 fig, ax = visualizer.waveform_display(db, start=start, end=end, sensor="MSPIDS", time_format="seconds")
 #%%
+log = db.session.get(spidb.Log, 168)
+
+start = log.start + dt.timedelta(seconds=4*60)
+end = start + dt.timedelta(seconds=60)
+
+fig, ax = visualizer.waveform_display(db, start=start, end=end, sensor="MSPIDS", time_format="seconds")
+# %%
