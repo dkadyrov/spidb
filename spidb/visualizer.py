@@ -7,23 +7,53 @@ from scipy import signal
 from dankpy import colors
 
 # %%
-def waveform_display(db, start, end, sensor, time_format="datetime", normalize=True):
-    fig, axs = plt.subplots(
-        nrows=8, ncols=1, sharex=True, layout="compressed", figsize=(1.5 * 6, 1.5 * 6)
-    )
+def waveform_display(db, start, end, sensor, time_format="datetime", normalize=True, compressed=False, envelope=False, filter=False):
+    if compressed:
+        if compressed:
+            fig, axs = plt.subplots(
+                nrows=4, ncols=2, sharex=True, sharey=True, layout="compressed", figsize=(5.5, 3.5)
+            ) 
+            axs = axs.flatten(order="F")
+    else: 
+        fig, axs = plt.subplots(
+            nrows=8, ncols=1, sharex=True, layout="compressed", figsize=(1.5 * 6, 1.5 * 6)
+        )
     # fig, axs = plt.subplots(nrows=8, ncols=1, sharex=True, layout="compressed")
     channels = np.arange(0, 8).tolist()
 
     for c in channels:
         a = db.get_audio(start, end, channel=c, sensor=sensor)
 
-        if normalize:
-            level = 2 * np.median(a.data.signal)
-            noise = a.data.signal[a.data.signal < level]
-            a.data.signal = a.data.signal / np.sqrt(np.mean(noise**2))
-
         ax = axs[c]
-        ax.set_ylabel(f"Ch. {c}")
+
+        if filter:
+            if sensor == "ASPIDS": 
+                if c < 4: 
+                    a.bandpass_filter(2000, 6000, overwrite=True)
+                else:
+                    a.highpass_filter(500, overwrite=True)
+            else:
+                if c < 6:
+                    a.lowpass_filter(100, overwrite=True)
+                else: 
+                    a.highpass_filter(500, overwrite=True)
+
+        if envelope: 
+            a.envelope(overwrite=True)
+
+        if normalize:
+            # level = 2 * np.median(a.data.signal)
+            # noise = a.data.signal[a.data.signal < level]
+            # a.data.signal = a.data.signal / np.sqrt(np.mean(noise**2))
+            a.data.signal = a.data.signal / 0.1*a.data.signal.max()
+
+        if c < 6: 
+            ax.set_ylabel(f"Ch. {c} - Micro.")
+        elif c == 6: 
+            ax.set_ylabel(f"Ch. {c} - Mic.")
+        else: 
+            ax.set_ylabel(f"Ch. {c} - Piezo.")
+        
         ax.yaxis.set_label_position("right")
 
         if time_format == "datetime":
@@ -40,12 +70,21 @@ def waveform_display(db, start, end, sensor, time_format="datetime", normalize=T
                 [round(a.data["time [s]"].min()), round(a.data["time [s]"].max())]
             )
 
+
+        if envelope and normalize and filter:
+            ax.set_ylim(0, 5)
+
     if time_format == "datetime":
         fig.supxlabel(f"Time on {a.data.datetime.iloc[0].date()}")
     else:
         fig.supxlabel("Time [s]")
-    fig.supylabel("Amplitude [a.u.]")
 
+    if normalize:
+        fig.supylabel("Normalized Amplitude")
+    else: 
+        fig.supylabel("Amplitude")
+
+    fig.show()
     return fig, axs
 
 def spectrogram_display(
@@ -57,7 +96,8 @@ def spectrogram_display(
     section="all",
     showscale=False,
     zmin=-140,
-    zmax=-80
+    zmax=-80, 
+    compressed = False
 ):
     if section == "internal":
         if sensor == "ASPIDS":
@@ -166,9 +206,16 @@ def spectrogram_display(
                 ax.yaxis.set_label_position("right")
 
     else:
-        fig, axs = plt.subplots(
-            nrows=8, ncols=1, sharex=True, layout="compressed", figsize=(5.5, 5.5)
-        ) 
+        if compressed:
+            fig, axs = plt.subplots(
+                nrows=4, ncols=2, sharex=True, sharey=True, layout="compressed", figsize=(5.5, 3.5)
+            ) 
+            axs = axs.flatten(order="F")
+
+        else: 
+            fig, axs = plt.subplots(
+                nrows=8, ncols=1, sharex=True, layout="compressed", figsize=(5.6, 3.5)
+            ) 
 
         channels = np.arange(0, 8).tolist()
 
@@ -208,7 +255,11 @@ def spectrogram_display(
             )
             axi.set_clim([zmin, zmax])
             ax.yaxis.set_label_position("right")
-            ax.set_ylabel(f"Ch. {c}")
+
+            if c < 4: 
+                ax.set_ylabel(f"Ch. {c} - Piezo.")
+            if c > 3: 
+                ax.set_ylabel(f"Ch. {c} - Mic.")
             ax.yaxis.set_label_position("right")
     if time_format == "datetime":
         ax.set_xlim([times.min(), times.max()])
