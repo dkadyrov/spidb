@@ -116,7 +116,6 @@ table_latex_min = {
     "Triticum aestivum": r"$\it{T.}$ $\it{aestivum}$",
 }
 
-# TODO: Wrap this all up in a function
 def lookup(key: str, latex:bool=False, min:bool=False) -> str:
     """
     Lookup function for the SPI database.

@@ -19,7 +19,7 @@ db = spidb.Database(r"data/spi.db")
 # fig, ax = plt.subplots()
 # for c in [0, 1, 2, 3]:
 #     audio = db.get_audio(start=start, end=end, sensor="ASPIDS", channel=c)
-#     f, p = signal.welch(audio.data.signal, fs=audio.sample_rate, nperseg=1024, scaling="spectrum")
+#     f, p = signal.welch(audio.data.signal, fs=audio.sample_rate, nperseg=1024, scaling="spectrum", window="blackmanharris")
 #     ax.plot(f, 10*np.log10(p), label=f"Ch. {c}", c=colors[c])
 # ax.legend(loc="upper right", ncols=4)
 # ax.set_xlim(0, 12000)
@@ -71,12 +71,19 @@ db = spidb.Database(r"data/spi.db")
 # end = start + dt.timedelta(seconds=60)
 
 # fig, ax = visualizer.waveform_display(db, start=start, end=end, sensor="MSPIDS", time_format="seconds")
-#%%
+# #%%
 log = db.session.get(spidb.Log, 168)
 
 start = log.start + dt.timedelta(seconds=4*60)
 end = start + dt.timedelta(seconds=60)
 
-fig, ax = visualizer.waveform_display(db, start=start, end=end, sensor="MSPIDS", time_format="seconds", compressed=True, normalize=True, filter=True, envelope=True)
-fig.savefig(rf"reports/documents/NeurIPS_SPID/images/microwave_display{log.target}_{log.material}.pdf", dpi=300, bbox_inches="tight")
+# fig, ax = visualizer.waveform_display(db, start=start, end=end, sensor="MSPIDS", time_format="seconds", compressed=True, normalize=True, filter=True, envelope=True)
+# fig.savefig(rf"reports/documents/NeurIPS_SPID/images/microwave_display{log.target}_{log.material}.pdf", dpi=300, bbox_inches="tight")
+# # %%
+# microwave = db.get_audio(start=start, end=end, sensor="MSPIDS", channel=4)
+
+# fig, ax = microwave.plot_spectrogram()
+# ax.set_ylim(0, 200)
+# %%
+fig, ax = visualizer.spectrogram_display(db, start=start, end=end, sensor="MSPIDS", time_format="seconds", section="all", showscale="True", compressed=True)
 # %%

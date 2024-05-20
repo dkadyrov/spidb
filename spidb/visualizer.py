@@ -207,8 +207,9 @@ def spectrogram_display(
 
     else:
         if compressed:
+            
             fig, axs = plt.subplots(
-                nrows=4, ncols=2, sharex=True, sharey=True, layout="compressed", figsize=(5.5, 3.5)
+                nrows=4, ncols=2, sharex=True, layout="compressed", figsize=(5.5, 3.5)
             ) 
             axs = axs.flatten(order="F")
 
@@ -256,10 +257,23 @@ def spectrogram_display(
             axi.set_clim([zmin, zmax])
             ax.yaxis.set_label_position("right")
 
-            if c < 4: 
-                ax.set_ylabel(f"Ch. {c} - Piezo.")
-            if c > 3: 
-                ax.set_ylabel(f"Ch. {c} - Mic.")
+            if sensor == "ASPIDS": 
+                fig.sharey=True
+                if c < 4: 
+                    ax.set_ylabel(f"Ch. {c} - Piezo.")
+                if c > 3: 
+                    ax.set_ylabel(f"Ch. {c} - Mic.")
+            else:
+                
+                if c < 6:
+                    ax.set_ylabel(f"Ch. {c} - Micro.")
+                    ax.set_ylim(0, 200)
+                elif c == 6: 
+                    ax.set_ylabel(f"Ch. {c} - Mic.")
+                    ax.set_ylim(0, 8000)
+                else:
+                    ax.set_ylabel(f"Ch. {c} - Piezo.")
+                    ax.set_ylim(0, 8000)
             ax.yaxis.set_label_position("right")
     if time_format == "datetime":
         ax.set_xlim([times.min(), times.max()])
@@ -275,6 +289,10 @@ def spectrogram_display(
     else:
         fig.supxlabel("Time [s]")
 
+    if sensor == "MSPIDS":
+        axs[0], axs[1], axs[2], axs[3], axs[4], axs[5], axs[6], axs[7] = axs[0], axs[1], axs[2], axs[6], axs[3], axs[4], axs[5], axs[7]
+        ax
+
     if showscale:
         # cbar = fig.colorbar(
         #     axi, ax=axs.ravel().tolist(), orientation="horizontal", location="top"
@@ -285,6 +303,7 @@ def spectrogram_display(
         cbar.ax.set_ylabel("Power [dB]")
     fig.supylabel("Frequency [Hz]")
 
+    fig.show()
     return fig, axs
 
 def spectra_display(db, start, end, sensor, section="all"):
