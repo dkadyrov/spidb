@@ -6,6 +6,7 @@ import matplotlib.dates as mdates
 from scipy import signal
 from dankpy import colors
 
+
 # %%
 def waveform_display(db, start, end, sensor, time_format="datetime", normalize=True, compressed=False, envelope=False, filter=False):
     if compressed:
@@ -208,9 +209,15 @@ def spectrogram_display(
     else:
         if compressed:
             
-            fig, axs = plt.subplots(
-                nrows=4, ncols=2, sharex=True, layout="compressed", figsize=(5.5, 3.5)
-            ) 
+            if sensor == "ASPIDS":
+                fig, axs = plt.subplots(
+                    nrows=4, ncols=2, sharex=True, sharey=True, layout="compressed", figsize=(5.5, 3.5)
+                ) 
+            else: 
+                fig, axs = plt.subplots(
+                    nrows=4, ncols=2, sharex=True, layout="compressed", figsize=(5.5, 3.5)
+                )                 
+            
             axs = axs.flatten(order="F")
 
         else: 
@@ -247,6 +254,7 @@ def spectrogram_display(
             extents = [times.min(), times.max(), frequencies.min(), frequencies.max()]
 
             ax = axs[c]
+
             axi = ax.imshow(
                 spectrogram,
                 extent=extents,
@@ -271,9 +279,12 @@ def spectrogram_display(
                 elif c == 6: 
                     ax.set_ylabel(f"Ch. {c} - Mic.")
                     ax.set_ylim(0, 8000)
+                    ax.set_yticks([0, 4000, 8000])
                 else:
                     ax.set_ylabel(f"Ch. {c} - Piezo.")
                     ax.set_ylim(0, 8000)
+                    ax.set_yticks([0, 4000, 8000])
+
             ax.yaxis.set_label_position("right")
     if time_format == "datetime":
         ax.set_xlim([times.min(), times.max()])
@@ -289,10 +300,6 @@ def spectrogram_display(
     else:
         fig.supxlabel("Time [s]")
 
-    if sensor == "MSPIDS":
-        axs[0], axs[1], axs[2], axs[3], axs[4], axs[5], axs[6], axs[7] = axs[0], axs[1], axs[2], axs[6], axs[3], axs[4], axs[5], axs[7]
-        ax
-
     if showscale:
         # cbar = fig.colorbar(
         #     axi, ax=axs.ravel().tolist(), orientation="horizontal", location="top"
@@ -303,8 +310,9 @@ def spectrogram_display(
         cbar.ax.set_ylabel("Power [dB]")
     fig.supylabel("Frequency [Hz]")
 
-    fig.show()
+    plt.show()
     return fig, axs
+
 
 def spectra_display(db, start, end, sensor, section="all"):
 

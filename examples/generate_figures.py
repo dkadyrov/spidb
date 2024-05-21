@@ -9,6 +9,7 @@ plt.style.use("dankpy.styles.neurips")
 # %%
 db = spidb.Database(r"data/spi.db")
 
+# Acoustic Sensor
 logs = db.session.query(spidb.Log).filter(spidb.Log.sensor == "ASPIDS").all()
 
 logs = dankframe.from_list(logs)
@@ -28,8 +29,17 @@ for l, log in logs.iterrows():
     for c in channels: 
         a = db.get_audio(start=start, end=end, sensor="ASPIDS", channel=c)
 
+        # IF you just want the raw audio data: 
+        # as a dataframe series
+        a.data.signal
+        # as a np array
+        a.audio 
+
         # spectrogram 
         fig, ax = a.plot_spectrogram(time_format="seconds", zmin=-140, zmax=-80)
+        
+        # removing axis and labels
+        ax.axis("off")
 
         # envelope waveform 
         if c < 4:
@@ -47,6 +57,69 @@ for l, log in logs.iterrows():
         
         # Maybe need to change the y-axis limits to keep consistent? 
         ax.set_ylim(0, None)
+
+        # Removing axis and labels
+        ax.axis("off")
+
+
+        start = end 
+        end = start + dt.timedelta(seconds=time_segment)
+
+        break
+
+    break 
+#%%
+# Microwave Sensor 
+logs = db.session.query(spidb.Log).filter(spidb.Log.sensor == "MSPIDS").all()
+logs = dankframe.from_list(logs)
+
+channels = list(range(8))
+
+time_segment = 60 # seconds
+
+for l, log in logs.iterrows():
+    start = log.start
+    if log.end - log.start < dt.timedelta(seconds=time_segment):
+        end = log.end
+    else:
+        end = start + dt.timedelta(seconds=time_segment)
+
+    for c in channels: 
+        a = db.get_audio(start=start, end=end, sensor="MSPIDS", channel=c)
+
+        # IF you just want the raw audio data:
+        # as a dataframe series
+        a.data.signal
+        # as a np array
+        a.audio
+
+        # spectrogram 
+        fig, ax = a.plot_spectrogram(time_format="seconds", zmin=-100, zmax=-50)
+
+        # removing axis and labels
+        ax.axis("off")
+
+        # envelope waveform and update spectrogram y-axis limits
+        if c < 6:
+            a.lowpass_filter(200, overwrite=True)
+            ax.set_ylim(0, 200)
+        else: 
+            a.highpass_filter(500, overwrite=True)
+            ax.set_ylim(0, 8000)
+        a.envelope(overwrite=True)
+
+        # Normalizing? 
+        a.data.signal = a.data.signal / 0.1*a.data.signal.max()
+        
+        fig, ax = plt.subplots()
+        ax.plot(a.data["time [s]"], a.data.signal)
+        ax.set_xlim(0, time_segment)
+        
+        # Maybe need to change the y-axis limits to keep consistent? 
+        ax.set_ylim(0, None)
+
+        # Removing axis and labels
+        ax.axis("off")
 
         start = end 
         end = start + dt.timedelta(seconds=time_segment)
