@@ -5,6 +5,8 @@ import glob
 import pandas as pd
 import matplotlib.pyplot as plt
 
+import torch
+
 plt.style.use("dankpy.styles.neurips")
 # %%
 db = spidb.Database(r"data/spi.db")
@@ -35,9 +37,12 @@ for l, log in logs.iterrows():
         # as a np array
         a.audio 
 
-        # spectrogram 
-        fig, ax = a.plot_spectrogram(time_format="seconds", zmin=-140, zmax=-80)
-        
+        # raw spectrogram values 
+        time, frequency, Pxx = a.spectrogram(window_size=1024, nfft=1024, nperseg=1024, noverlap=512, time_format="seconds")
+
+        # plot
+        fig, ax = a.plot_spectrogram(window_size=1024, nfft=1024, nperseg=1024, noverlap=512, time_format="seconds", zmin=-140, zmax=-80)
+
         # removing axis and labels
         ax.axis("off")
 
@@ -93,8 +98,12 @@ for l, log in logs.iterrows():
         # as a np array
         a.audio
 
-        # spectrogram 
-        fig, ax = a.plot_spectrogram(time_format="seconds", zmin=-100, zmax=-50)
+        # raw spectrogram
+        time, frequency, Pxx = a.spectrogram(window_size=1024, nfft=1024, nperseg=1024, noverlap=512, time_format="seconds")
+
+
+        # spectrogram plot
+        fig, ax = a.plot_spectrogram(window_size=1024, nfft=1024, nperseg=1024, noverlap=512, time_format="seconds", zmin=-100, zmax=-70)
 
         # removing axis and labels
         ax.axis("off")
@@ -115,8 +124,8 @@ for l, log in logs.iterrows():
         ax.plot(a.data["time [s]"], a.data.signal)
         ax.set_xlim(0, time_segment)
         
-        # Maybe need to change the y-axis limits to keep consistent? 
-        ax.set_ylim(0, None)
+        # Need to change the y-axis limits to keep consistent
+        ax.set_ylim(0, 20)
 
         # Removing axis and labels
         ax.axis("off")

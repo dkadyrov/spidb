@@ -85,11 +85,28 @@ fig, ax = visualizer.waveform_display(db, start=start, end=end, sensor="MSPIDS",
 fig, ax = visualizer.spectrogram_display(db, start=start, end=end, sensor="MSPIDS", time_format="seconds", section="all", showscale="True", compressed=True, zmin=-100, zmax=-50)
 
 #%%
+
+
+#%%
 # Spectrogram of the Microwave Sensor with a specific channel
 microwave = db.get_audio(start=start, end=end, sensor="MSPIDS", channel=4)
 fig, ax = microwave.plot_spectrogram(zmin=-100, zmax=-50, time_format="seconds")
 # fig.savefig(rf"reports/documents/NeurIPS_SPID/images/microwave_spectrogram_{log.target}_{log.material}_{c}.pdf", dpi=300, bbox_inches="tight")
 ax.set_ylim(0, 200)
+
+#%%
+
+microwave.lowpass_filter(200, overwrite=True)
+
+microwave.envelope(overwrite=True)
+microwave.data.signal = microwave.data.signal / 0.1*microwave.data.signal.max()
+
+fig, ax = plt.subplots()
+ax.plot(microwave.data["time [s]"], microwave.data.signal)
+ax.set_xlim(0, 60)
+ax.set_ylim(0, 20)
+
+
 # %%
 # Example of a Noisy Microwave Moment
 

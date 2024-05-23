@@ -50,7 +50,7 @@ for l, log in logs.iterrows():
         tensor = torch.from_numpy(a.audio)
 
         transform = T.Spectrogram(
-            n_fft=2048, 
+            n_fft=1024, 
             win_length=1024,
             power=2 #magnitude
         )
@@ -94,7 +94,7 @@ for l, log in logs.iterrows():
         tensor = torch.from_numpy(a.audio)
 
         transform = T.Spectrogram(
-            n_fft=2048, 
+            n_fft=1024, 
             win_length=1024,
             power=2 #magnitude
         )
@@ -105,7 +105,7 @@ for l, log in logs.iterrows():
 
         fig, ax = plt.subplots()
         axi = ax.imshow(spec, origin="lower", cmap="jet")
-        axi.set_clim(0, 50)
+        axi.set_clim(-100, -70)
         if c < 6:
             ax.set_ylim(0, 200)
 
