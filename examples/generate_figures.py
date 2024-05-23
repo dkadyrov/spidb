@@ -40,6 +40,9 @@ for l, log in logs.iterrows():
         # raw spectrogram values 
         time, frequency, Pxx = a.spectrogram(window_size=1024, nfft=1024, nperseg=1024, noverlap=512, time_format="seconds")
 
+        # convert to tensor
+        tensor = torch.from_numpy(Pxx)
+
         # plot
         fig, ax = a.plot_spectrogram(window_size=1024, nfft=1024, nperseg=1024, noverlap=512, time_format="seconds", zmin=-140, zmax=-80)
 
@@ -101,6 +104,8 @@ for l, log in logs.iterrows():
         # raw spectrogram
         time, frequency, Pxx = a.spectrogram(window_size=1024, nfft=1024, nperseg=1024, noverlap=512, time_format="seconds")
 
+        # convert to tensor
+        tensor = torch.from_numpy(Pxx)
 
         # spectrogram plot
         fig, ax = a.plot_spectrogram(window_size=1024, nfft=1024, nperseg=1024, noverlap=512, time_format="seconds", zmin=-100, zmax=-70)
