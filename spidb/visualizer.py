@@ -310,7 +310,6 @@ def spectrogram_display(
         cbar.ax.set_ylabel("Power [dB]")
     fig.supylabel("Frequency [Hz]")
 
-    plt.show()
     return fig, axs
 
 
@@ -319,7 +318,7 @@ def spectra_display(db, start, end, sensor, section="all"):
     fig, ax = plt.subplots()
 
     if section == "internal":
-        if sensor == "Acoustic":
+        if sensor == "ASPIDS":
             channels = np.arange(0, 4).tolist()
 
             for c in channels:
@@ -341,7 +340,7 @@ def spectra_display(db, start, end, sensor, section="all"):
                 ax.plot(f, 10 * np.log10(p), label=f"Ch. {c}", color=colors[c])
 
     if section == "all":
-        if sensor == "Acoustic":
+        if sensor == "ASPIDS":
             channels = np.arange(0, 8).tolist()
 
             for c in channels:
@@ -368,3 +367,5 @@ def spectra_display(db, start, end, sensor, section="all"):
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("PSD [dB]")
     ax.legend(loc="upper right", ncols=2)
+
+    return fig, ax 
