@@ -31,7 +31,7 @@ channels = list(range(8))
 time_segment = 60 # seconds
 
 for l, log in logs.iterrows():
-    start = log.start + dt.timedelta(seconds=60)
+    start = log.start
     if log.end - log.start < dt.timedelta(seconds=time_segment):
         end = log.end
     else:
