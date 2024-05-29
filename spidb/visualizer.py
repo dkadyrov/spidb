@@ -276,14 +276,15 @@ def spectrogram_display(
                 if c < 6:
                     ax.set_ylabel(f"Ch. {c} - Micro.")
                     ax.set_ylim(0, 200)
+                    ax.set_yticks([0, 100, 200])
                 elif c == 6: 
                     ax.set_ylabel(f"Ch. {c} - Mic.")
-                    ax.set_ylim(0, 8000)
-                    ax.set_yticks([0, 4000, 8000])
+                    ax.set_ylim(0, 2000)
+                    ax.set_yticks([0, 1000, 2000])
                 else:
                     ax.set_ylabel(f"Ch. {c} - Piezo.")
-                    ax.set_ylim(0, 8000)
-                    ax.set_yticks([0, 4000, 8000])
+                    ax.set_ylim(0, 2000)
+                    ax.set_yticks([0, 1000, 2000])
 
             ax.yaxis.set_label_position("right")
     if time_format == "datetime":
