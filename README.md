@@ -9,3 +9,18 @@ Available on Kaggle:
 ## Requirements 
 
 I am guilty of using a lot of functions I personally developed and uploaded as the [DANKPY](https://github.com/dkadyrov/dankpy).
+
+## Installation
+
+Install directly from Git using Pip: 
+
+```bash
+pip install git+https://github.com/dkadyrov/dankpy
+```
+
+Locally install by downloading the repo and installing through pip after setting your terminal to the repo directory: 
+
+```bash
+pip install .
+```
+
