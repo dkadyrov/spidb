@@ -2,7 +2,6 @@
 
 This script demonstrates how to summarize the data in the SPIDB database. It illustrates how to query the database, convert the results to a DataFrame, and create pivot tables to summarize the data.
 """
-
 from spidb import spidb, lookup
 from dankpy import dankframe
 import pandas as pd
@@ -21,7 +20,7 @@ aspids = db.session.query(spidb.Log).filter(spidb.Log.sensor == "ASPIDS").all()
 aspids = dankframe.from_list(aspids)
 
 # Get logs that feature a target using the lookup table
-aspids = aspids[aspids.target.isin(lookup.table.keys())]
+aspids = aspids[aspids.target.str.lower().isin(lookup.table.keys())]
 
 # Seperate silence and noise logs
 silent = aspids[aspids.noise == "Silence"]
@@ -38,6 +37,7 @@ table = pd.pivot_table(
 )
 # Convert the table to minutes
 table = table / 60
+table 
 
 # Create a pivot table for the noisy logs
 table = pd.pivot_table(
@@ -50,6 +50,7 @@ table = pd.pivot_table(
 )
 # Convert the table to minutes
 table = table / 60
+table 
 
 # Get all logs for the MSPIDS sensor
 mspids = db.session.query(spidb.Log).filter(spidb.Log.sensor == "MSPIDS").all()
@@ -58,7 +59,7 @@ mspids = db.session.query(spidb.Log).filter(spidb.Log.sensor == "MSPIDS").all()
 mspids = dankframe.from_list(mspids)
 
 # Get logs that feature a target using the lookup table
-mspids = mspids[mspids.target.isin(lookup.table.keys())]
+mspids = mspids[mspids.target.str.lower().isin(lookup.table.keys())]
 
 # Seperate silence and noise logs
 silent = mspids[mspids.noise == "Silence"]

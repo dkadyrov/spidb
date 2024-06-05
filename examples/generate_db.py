@@ -37,7 +37,7 @@ for f, fi in files.iterrows():
 db.session.commit()
 
 # Location of the ASPID Log File
-log = pd.read_csv(r"data/aspids_log.csv")
+log = pd.read_csv(r"data/aspids/aspids_log.csv")
 
 # Convert the start and end columns to datetime
 log["start"] = pd.to_datetime(log["start"])
@@ -90,7 +90,7 @@ for f, fi in files.iterrows():
 db.session.commit()
 
 # Location of the MSPID Log File
-log = pd.read_csv(r"data/mspids_log.csv")
+log = pd.read_csv(r"data/mspids/mspids_log.csv")
 
 # Convert the start and end columns to datetime
 log["start"] = pd.to_datetime(log["start"])

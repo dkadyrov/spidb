@@ -8,16 +8,34 @@ from dankpy import colors
 
 
 # %%
-def waveform_display(db, start, end, sensor, time_format="datetime", normalize=True, compressed=False, envelope=False, filter=False):
+def waveform_display(
+    db,
+    start,
+    end,
+    sensor,
+    time_format="datetime",
+    normalize=True,
+    compressed=False,
+    envelope=False,
+    filter=False,
+):
     if compressed:
-        if compressed:
-            fig, axs = plt.subplots(
-                nrows=4, ncols=2, sharex=True, sharey=True, layout="compressed", figsize=(5.5, 3.5)
-            ) 
-            axs = axs.flatten(order="F")
-    else: 
         fig, axs = plt.subplots(
-            nrows=8, ncols=1, sharex=True, layout="compressed", figsize=(1.5 * 6, 1.5 * 6)
+            nrows=4,
+            ncols=2,
+            sharex=True,
+            layout="compressed",
+            figsize=(3, 4),
+        )
+
+        axs = axs.flatten(order="F")
+    else:
+        fig, axs = plt.subplots(
+            nrows=8,
+            ncols=1,
+            sharex=True,
+            layout="compressed",
+            figsize=(1.5 * 6, 1.5 * 6),
         )
     # fig, axs = plt.subplots(nrows=8, ncols=1, sharex=True, layout="compressed")
     channels = np.arange(0, 8).tolist()
@@ -28,33 +46,56 @@ def waveform_display(db, start, end, sensor, time_format="datetime", normalize=T
         ax = axs[c]
 
         if filter:
-            if sensor == "ASPIDS": 
-                if c < 4: 
-                    a.bandpass_filter(2000, 6000, overwrite=True)
+            if sensor == "ASPIDS":
+                if c < 4:
+                    a.bandpass_filter(500, 6000, order=10, overwrite=True)
                 else:
-                    a.highpass_filter(500, overwrite=True)
+                    a.highpass_filter(500, order=10, overwrite=True)
             else:
                 if c < 6:
-                    a.lowpass_filter(100, overwrite=True)
-                else: 
-                    a.highpass_filter(500, overwrite=True)
+                    a.lowpass_filter(100, order=10, overwrite=True)
+                else:
+                    a.highpass_filter(500, order=10, overwrite=True)
 
-        if envelope: 
+        if envelope:
             a.envelope(overwrite=True)
 
         if normalize:
-            # level = 2 * np.median(a.data.signal)
-            # noise = a.data.signal[a.data.signal < level]
-            # a.data.signal = a.data.signal / np.sqrt(np.mean(noise**2))
-            a.data.signal = a.data.signal / 0.1*a.data.signal.max()
+            if sensor == "ASPIDS":
+                level = np.median(a.data.signal)
+                noise = a.data.signal[a.data.signal < level]
+                a.data.signal = a.data.signal / np.sqrt(np.mean(noise**2))
 
-        if c < 6: 
-            ax.set_ylabel(f"Ch. {c} - Micro.")
-        elif c == 6: 
-            ax.set_ylabel(f"Ch. {c} - Mic.")
-        else: 
-            ax.set_ylabel(f"Ch. {c} - Piezo.")
-        
+            if sensor == "MSPIDS":
+                if c < 6:
+                    a.data.signal = a.data.signal / 0.1 * a.data.signal.max()
+                else:
+                    level = np.median(a.data.signal)
+                    noise = a.data.signal[a.data.signal < level]
+                    a.data.signal = a.data.signal / np.sqrt(np.mean(noise**2))
+
+        if sensor == "ASPIDS":
+            if c < 4:
+                ax.set_title(f"Ch. {c} - Piezoelectric")
+                ax.set_ylim(0, 500)
+                ax.set_yticks([0, 250, 500])
+            else:
+                ax.set_title(f"Ch. {c} - Microphone")
+                ax.set_ylim(0, 100)
+                ax.set_yticks([0, 50, 100])
+        else:
+            if c < 6:
+                ax.set_title(f"Ch. {c} - Microwave")
+                ax.set_ylim(0, 5)
+            elif c == 6:
+                ax.set_title(f"Ch. {c} - Microphone")
+                ax.set_ylim(0, 100)
+                ax.set_yticks([0, 50, 100])
+            else:
+                ax.set_title(f"Ch. {c} - Piezoelectric")
+                ax.set_ylim(0, 100)
+                ax.set_yticks([0, 50, 100])
+
         ax.yaxis.set_label_position("right")
 
         if time_format == "datetime":
@@ -65,15 +106,14 @@ def waveform_display(db, start, end, sensor, time_format="datetime", normalize=T
             ax.xaxis.set_major_formatter(myFmt)
             ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=2))
 
-        else:
+        elif time_format == "seconds":
             ax.plot(a.data["time [s]"], a.data.signal)
             ax.set_xlim(
                 [round(a.data["time [s]"].min()), round(a.data["time [s]"].max())]
             )
 
-
         if envelope and normalize and filter:
-            ax.set_ylim(0, 5)
+            ax.set_ylim(0, None)
 
     if time_format == "datetime":
         fig.supxlabel(f"Time on {a.data.datetime.iloc[0].date()}")
@@ -82,11 +122,11 @@ def waveform_display(db, start, end, sensor, time_format="datetime", normalize=T
 
     if normalize:
         fig.supylabel("Normalized Amplitude")
-    else: 
+    else:
         fig.supylabel("Amplitude")
 
-    fig.show()
     return fig, axs
+
 
 def spectrogram_display(
     db,
@@ -96,10 +136,18 @@ def spectrogram_display(
     time_format="datetime",
     section="all",
     showscale=False,
-    zmin=-140,
-    zmax=-80, 
-    compressed = False
+    zmin=None,
+    zmax=None,
+    compressed=False,
 ):
+    if zmin is None and zmax is None:
+        if sensor == "ASPIDS":
+            zmin = -140
+            zmax = -80
+        else:
+            zmin = -100
+            zmax = -50
+
     if section == "internal":
         if sensor == "ASPIDS":
             fig, axs = plt.subplots(
@@ -208,22 +256,30 @@ def spectrogram_display(
 
     else:
         if compressed:
-            
             if sensor == "ASPIDS":
                 fig, axs = plt.subplots(
-                    nrows=4, ncols=2, sharex=True, sharey=True, layout="compressed", figsize=(5.5, 3.5)
-                ) 
-            else: 
+                    nrows=4,
+                    ncols=2,
+                    sharex=True,
+                    sharey=True,
+                    layout="compressed",
+                    figsize=(3, 4),
+                )
+            else:
                 fig, axs = plt.subplots(
-                    nrows=4, ncols=2, sharex=True, layout="compressed", figsize=(5.5, 3.5)
-                )                 
-            
+                    nrows=4,
+                    ncols=2,
+                    sharex=True,
+                    layout="compressed",
+                    figsize=(3, 4),
+                )
+
             axs = axs.flatten(order="F")
 
-        else: 
+        else:
             fig, axs = plt.subplots(
                 nrows=8, ncols=1, sharex=True, layout="compressed", figsize=(5.6, 3.5)
-            ) 
+            )
 
         channels = np.arange(0, 8).tolist()
 
@@ -265,26 +321,40 @@ def spectrogram_display(
             axi.set_clim([zmin, zmax])
             ax.yaxis.set_label_position("right")
 
-            if sensor == "ASPIDS": 
-                fig.sharey=True
-                if c < 4: 
-                    ax.set_ylabel(f"Ch. {c} - Piezo.")
-                if c > 3: 
-                    ax.set_ylabel(f"Ch. {c} - Mic.")
+            if sensor == "ASPIDS":
+                fig.sharey = True
+                ax.set_ylim(0, 8000)
+                ax.set_yticks([0, 4000, 8000])
+                # if c < 4:
+                #     ax.set_ylabel(f"Ch. {c} - Piezo.")
+                # if c > 3:
+                #     ax.set_ylabel(f"Ch. {c} - Mic.")
             else:
-                
                 if c < 6:
-                    ax.set_ylabel(f"Ch. {c} - Micro.")
+                    # ax.set_ylabel(f"Ch. {c} - Micro.")
                     ax.set_ylim(0, 200)
                     ax.set_yticks([0, 100, 200])
-                elif c == 6: 
-                    ax.set_ylabel(f"Ch. {c} - Mic.")
+                elif c == 6:
+                    # ax.set_ylabel(f"Ch. {c} - Mic.")
                     ax.set_ylim(0, 2000)
                     ax.set_yticks([0, 1000, 2000])
                 else:
-                    ax.set_ylabel(f"Ch. {c} - Piezo.")
+                    # ax.set_ylabel(f"Ch. {c} - Piezo.")
                     ax.set_ylim(0, 2000)
                     ax.set_yticks([0, 1000, 2000])
+
+            if sensor == "ASPIDS":
+                if c < 4:
+                    ax.set_title(f"Ch. {c} - Piezoelectric")
+                else:
+                    ax.set_title(f"Ch. {c} - Microphone")
+            else:
+                if c < 6:
+                    ax.set_title(f"Ch. {c} - Microwave")
+                elif c == 6:
+                    ax.set_title(f"Ch. {c} - Microphone.")
+                else:
+                    ax.set_title(f"Ch. {c} - Piezoelectric")
 
             ax.yaxis.set_label_position("right")
     if time_format == "datetime":
@@ -302,71 +372,78 @@ def spectrogram_display(
         fig.supxlabel("Time [s]")
 
     if showscale:
-        # cbar = fig.colorbar(
-        #     axi, ax=axs.ravel().tolist(), orientation="horizontal", location="top"
-        # )
-        cbar = fig.colorbar(
-            axi, ax=axs.ravel().tolist(), orientation="vertical", location="right"
-        )
-        cbar.ax.set_ylabel("Power [dB]")
+        if compressed:
+            cbar = fig.colorbar(
+                axi, ax=axs.ravel().tolist(), orientation="horizontal", location="top"
+            )
+            cbar.ax.set_title("Power [dB]")
+        else:
+            cbar = fig.colorbar(
+                axi, ax=axs.ravel().tolist(), orientation="vertical", location="right"
+            )
+            cbar.ax.set_ylabel("Power [dB]")
     fig.supylabel("Frequency [Hz]")
 
     return fig, axs
 
 
 def spectra_display(db, start, end, sensor, section="all"):
-
     fig, ax = plt.subplots()
 
     if section == "internal":
         if sensor == "ASPIDS":
             channels = np.arange(0, 4).tolist()
+        else:
+            channels = np.arange(0, 6).tolist()
 
-            for c in channels:
-                a = db.get_audio(start, end, channel=c, sensor=sensor)
+        for c in channels:
+            a = db.get_audio(start, end, channel=c, sensor=sensor)
 
+            a.fade_in(fade_time=2, overwrite=True)
+            a.fade_out(fade_time=2, overwrite=True)
 
-                a.fade_in(fade_time=2, overwrite=True)
-                a.fade_out(fade_time=2, overwrite=True)
+            f, p = signal.welch(
+                a.data.signal,
+                fs=a.sample_rate,
+                nperseg=1024,
+                window="blackmanharris",
+                average="mean",
+                scaling="spectrum",
+            )
 
-                f, p = signal.welch(
-                    a.data.signal,
-                    fs=a.sample_rate,
-                    nperseg=1024,
-                    window="blackmanharris",
-                    average="mean",
-                    scaling="spectrum",
-                )
-
-                ax.plot(f, 10 * np.log10(p), label=f"Ch. {c}", color=colors[c])
+            ax.plot(f, 10 * np.log10(p), label=f"Ch. {c}", color=colors[c])
 
     if section == "all":
-        if sensor == "ASPIDS":
-            channels = np.arange(0, 8).tolist()
+        channels = np.arange(0, 8).tolist()
 
-            for c in channels:
-                a = db.get_audio(start, end, channel=c, sensor=sensor)
+        for c in channels:
+            a = db.get_audio(start, end, channel=c, sensor=sensor)
 
-                a.fade_in(fade_time=2, overwrite=True)
-                a.fade_out(fade_time=2, overwrite=True)
+            a.fade_in(fade_time=2, overwrite=True)
+            a.fade_out(fade_time=2, overwrite=True)
 
-                f, p = signal.welch(
-                    a.data.signal,
-                    fs=a.sample_rate,
-                    window="blackmanharris",
-                    average="mean",
-                    scaling="spectrum",
-                )
+            f, p = signal.welch(
+                a.data.signal,
+                fs=a.sample_rate,
+                window="blackmanharris",
+                average="mean",
+                scaling="spectrum",
+            )
 
+            if sensor == "ASPIDS":
                 if c < 4:
                     color = "black"
                 else:
                     color = "red"
+            else:
+                if c < 6:
+                    color = "black"
+                else:
+                    color = "red"
 
-
-                ax.plot(f, 10 * np.log10(p), label=f"Ch. {c}", c = color)
+            ax.plot(f, 10 * np.log10(p), label=f"Ch. {c}", c=color)
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("PSD [dB]")
     ax.legend(loc="upper right", ncols=2)
 
-    return fig, ax 
+    return fig, ax
