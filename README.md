@@ -12,7 +12,7 @@ The processed files (spectrograms, envelopes) is available here:
 
 ## Requirements 
 
-I am guilty of using a lot of functions I personally developed and uploaded as the [DANKPY](https://github.com/dkadyrov/dankpy).
+I am guilty of using a lot of functions I personally developed and uploaded as the [DANKPY](https://github.com/dkadyrov/spidb).
 
 ## Installation
 
