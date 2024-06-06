@@ -2,9 +2,13 @@
 
 The Stored Product Insect Database (SPIDB) is the Python package to assist with the Stored Product Insect Database (SPID) available on Kaggle. 
 
-Available on Kaggle:
+The raw datasets are available at the following links: 
 - [Acoustic Stored Product Insect Dataset (A-SPID)](https://www.kaggle.com/datasets/dkadyrov/stored-product-insect-database-spidb-aspids)
 - [Microwave Stored Product Insect Dataset (M-SPID)](https://www.kaggle.com/datasets/dkadyrov/stored-product-insect-database-spidb-mspids)
+
+The processed files (spectrograms, envelopes) is available here: 
+- [Processed Files Stored Product Insect Dataset](https://www.kaggle.com/datasets/dkadyrov/stored-product-insect-dataset-processed-data)
+
 
 ## Requirements 
 
