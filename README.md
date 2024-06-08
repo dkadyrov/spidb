@@ -12,14 +12,14 @@ The processed files (spectrograms, envelopes) is available here:
 
 ## Requirements 
 
-I am guilty of using a lot of functions I personally developed and uploaded as the [DANKPY](https://github.com/dkadyrov/spidb).
+I am guilty of using a lot of functions I personally developed and uploaded as the [DANKPY](https://github.com/dkadyrov/spidb). The requirements will install automatically during the pip installation through setupy.py. 
 
 ## Installation
 
 Install directly from Git using Pip: 
 
 ```bash
-pip install git+https://github.com/dkadyrov/dankpy
+pip install git+https://github.com/dkadyrov/spidb
 ```
 
 Locally install by downloading the repo and installing through pip after setting your terminal to the repo directory: 
