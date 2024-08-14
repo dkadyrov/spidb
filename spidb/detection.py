@@ -183,6 +183,95 @@ def acoustic_detector(db,
         a.envelope(overwrite=True)
 
         if c < 4: 
+            level = 5*np.median(a.data.signal)
+        else: 
+            level = 0.5*np.median(a.data.signal)
+        
+        noise = a.data.signal[a.data.signal < level]
+        # a.data.signal = a.data.signal / metrics[f"{int(c)}"]["rms"]
+
+        # if c < 4: 
+        a.data.signal = a.data.signal / (np.sqrt(np.mean(noise**2)))
+        
+        # a.data.signal = 20*np.log10(a.data.signal)
+        # else: 
+            # a.data.signal = a.data.signal / (np.sqrt(np.mean(noise**2)))            
+        if "datetime" not in data.columns:
+            data["datetime"] = a.data.datetime
+        if "time [s]" not in data.columns:
+            data["time [s]"] = a.data["time [s]"]
+
+        mo[f"ch{c}"] = 0 
+
+        if c < 4:
+            mo.loc[
+                mo_i(a.data[a.data.signal >= internal_cutoff].datetime), f"ch{c}"
+            ] = 1
+            data[f"ch{c} internal"] = a.data.signal
+
+        else:
+            mo.loc[
+                mo_i(a.data[a.data.signal >= external_cutoff].datetime), f"ch{c}"
+            ] = 1
+            data[f"ch{c} external"] = a.data.signal
+
+        mo[f"ch{c}_max"] = (
+            a.data.groupby(pd.Grouper(freq="s", key="datetime"))
+            .max()
+            .reset_index()["signal"]
+        )
+
+    mo["internal"] = mo[[f"ch{c}" for c in internal_channels]].sum(axis=1)
+    mo["external"] = mo[[f"ch{c}" for c in external_channels]].sum(axis=1)
+    mo["detection"] = mo.apply(
+        lambda x: detection(x.internal, x.external, size=4), axis=1
+    )
+
+    info = {
+        "mo": mo,
+        "sensor": "ASPIDS",
+    }
+
+    if keep_data is True:
+        info["data"] = data
+
+    return info
+
+def acoustic_detector_v3(db, 
+    start, length=60, internal_cutoff=5, external_cutoff=3, keep_data=True, internal_channels=[0, 1, 2, 3], external_channels=[4,5,6,7]
+):
+
+    # metrics = noise.attrs["metrics"]
+
+    mo = pd.DataFrame()
+    mo["datetime"] = pd.date_range(
+        start, start + dt.timedelta(seconds=length), freq="s"
+    )
+    mo["time [s]"] = mo.index
+    mo_i = interpolate.interp1d(
+        pd.to_numeric(mo.datetime), mo.index, kind="nearest", fill_value="extrapolate"
+    )
+
+    channels = np.arange(0, 8).tolist()
+    data = pd.DataFrame()  # [{}] * len(channels)
+
+    for c in channels:
+        a = db.get_audio(
+            start,
+            start + dt.timedelta(seconds=length),
+            channel=int(c),
+            sensor="ASPIDS",
+        )
+        a.resample(12500)
+
+        if c < 4:
+            a.bandpass_filter(500, 6000, order=10, overwrite=True)
+        else:
+            a.highpass_filter(100, order=10, overwrite=True)
+
+        a.envelope(overwrite=True)
+
+        if c < 4: 
             level = np.median(a.data.signal)
         else: 
             level = 0.5*np.median(a.data.signal)
