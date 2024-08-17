@@ -37,7 +37,7 @@ def generate_boxwhisker(df, feature="snr"):
         for i in targets:
         # for i in data.target.unique():
             g = group[group["target"] == i]
-            b = ax.boxplot(g[feature].values, positions=[j+0.5], showfliers=False, boxprops=dict(facecolor=colors[c]), medianprops=dict(color="black", linewidth= 0), patch_artist=True, widths=0.25, showcaps=False, notch=False, whis=0)
+            b = ax.boxplot(g[feature].values, positions=[j+0.5], showfliers=False, boxprops=dict(facecolor=colors[c]), medianprops=dict(color="black", linewidth= 0), patch_artist=True, widths=0.25, showcaps=True, notch=False, whis=1.5)
             j += 1
             c += 1
             artists.append(b)
@@ -52,12 +52,12 @@ def generate_boxwhisker(df, feature="snr"):
         ax.set_ylabel("RMS [a.u.]")
 
     #place legend above the plot 
-    ax.legend([element["boxes"][0] for element in artists], list(group.target.unique()),  loc="upper center", ncols=4, columnspacing=1, markerscale=0.5, bbox_to_anchor=(0.5, 1.35))
+    ax.legend([element["boxes"][0] for element in artists], list(group.target.unique()),  loc="upper center", ncols=4, columnspacing=1, markerscale=0.5, bbox_to_anchor=(0.5, 1.35), fontsize=8)
 
     lims = ax.get_xlim()
     ax.set_xticks(np.arange(0, lims[1], lims[1]//len(materials))+lims[1]//(2*len(materials)))
-    ax.vlines(np.arange(0, 20, 4), 0, 80, color="black", alpha=0.25)
-    ax.set_xticklabels([material for material in materials], fontsize=6)
+    ax.vlines(np.arange(0, 20, 4), 0, 100, color="black", alpha=0.25)
+    ax.set_xticklabels([material for material in materials], fontsize=8)
     plt.tick_params(axis='x', which='both', bottom=False, top=False)
     
     return fig, ax

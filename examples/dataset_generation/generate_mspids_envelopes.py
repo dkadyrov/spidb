@@ -11,7 +11,7 @@ import os
 
 import numpy as np
 
-db = spidb.Database(r"data/spi.db")
+db = spidb.Database(r"data/spi2.db")
 
 logs = db.session.query(spidb.Log).filter(spidb.Log.sensor == "MSPIDS").all()
 
@@ -23,7 +23,6 @@ time_segment = 60  # seconds
 
 targets = [
     "Tribolium confusum",
-    
     "Callosobruchus maculatus",
     "Tenebrio molitor larvae",
     "Tenebrio molitor",
@@ -49,9 +48,9 @@ def generate_MSPIDS_envelopes(log):
             a = db.get_audio(start=start, end=end, sensor="MSPIDS", channel=c)
 
             if c < 6:
-                a.lowpass_filter(100, order=10, overwrite=True)
+                a.lowpass_filter(50, order=5, overwrite=True)
             else:
-                a.highpass_filter(500, order=10, overwrite=True)
+                a.highpass_filter(1000, order=5, overwrite=True)
 
             a.envelope(overwrite=True)
 
@@ -109,9 +108,9 @@ if __name__ == "__main__":
     pool = mp.Pool(cpus)
 
 
-    # logs = db.session.query(spidb.Log).filter(spidb.Log.sensor == "MSPIDS").all()
+    logs = db.session.query(spidb.Log).filter(spidb.Log.sensor == "MSPIDS").all()
 
-    logs = [db.session.get(spidb.Log, 167), db.session.get(spidb.Log, 168), db.session.get(spidb.Log, 209)]
+    # logs = [db.session.get(spidb.Log, 167), db.session.get(spidb.Log, 168), db.session.get(spidb.Log, 209)]
 
     results = pool.map(generate_MSPIDS_envelopes, logs)
 

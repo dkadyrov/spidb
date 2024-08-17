@@ -2,6 +2,7 @@
 
 This script provides examples of how to visualize the data stored in the SPIDB database. The script demonstrates how to display the waveform, spectrogram, and spectra of the audio and microwave sensors. The script also provides examples of how to extract audio data from the database and display the waveform and envelope of the audio signal.
 """
+#%%
 from spidb import spidb, visualizer
 from dankpy import file, dt, colors
 import pandas as pd
@@ -9,9 +10,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal
 
-
+plt.style.use("dankpy.styles.neurips")
 # Initialize the Database
-db = spidb.Database(r"data/spi.db")
+db = spidb.Database(r"data/spi2.db")
+
+#%%
 
 # Find the logs with the specific target and material
 logs = (
@@ -75,17 +78,59 @@ ax[0].set_xlim(0, 60)
 ax[0].set_xlabel("Time [s] \n a")
 
 # Filter the audio signal
-audio.bandpass_filter(500, 6000, overwrite=True)
+audio.bandpass_filter(500, 6000, overwrite=True, order=10)
 
 # Envelope the audio signal
 audio.envelope(overwrite=True)
 
-fig, ax = plt.subplots()
+# Normalize the audio signal
+level = np.median(audio.data.signal)
+noise = audio.data[audio.data.signal <= level]
+audio.data.signal = audio.data.signal / np.sqrt(np.mean(noise.signal**2))
+
 ax[1].plot(audio.data["time [s]"], audio.data.signal)
 ax[1].set_xlim(0, 60)
-ax[1].set_ylim(0, 0.02)
 ax[1].set_xlabel("Time [s] \n b")
+ax[1].set_ylim(0, None)
 
+fig, ax = plt.subplots(figsize=(3,1.5))
+ax.plot(audio.data["time [s]"], audio.data.signal)
+ax.set_xlim(0, 60)
+ax.set_ylim(0, 400)
+ax.set_xlabel("Time [s]")
+ax.set_ylabel("Normalized Amplitude")
+fig.savefig(rf"projects/NeurIPS/images/rebuttle/{log.id} - {log.target} - {log.material} - envelope (500-6000).pdf", dpi=300)
+#%%
+audio = db.get_audio(start=start, end=end, sensor="ASPIDS", channel=0)
+
+audio.bandpass_filter(2000, 6000, overwrite=True, order=5)
+
+audio.envelope(overwrite=True)
+
+
+level = np.median(audio.data.signal)
+noise = audio.data[audio.data.signal <= level]
+audio.data.signal = audio.data.signal / np.sqrt(np.mean(noise.signal**2))
+
+fig, ax = plt.subplots(figsize=(3,1.5))
+ax.plot(audio.data["time [s]"], audio.data.signal)
+ax.set_xlim(0, 60)
+ax.set_xlabel("Time [s]")
+ax.set_ylim(0, 600)
+ax.set_ylabel("Normalized Amplitude")
+fig.savefig(rf"projects/NeurIPS/images/rebuttle/{log.id} - {log.target} - {log.material} - envelope (2000-6000).pdf", dpi=300)
+#%%
+import librosa
+
+audio = db.get_audio(start=start, end=end, sensor="ASPIDS", channel=0)
+
+
+fig, ax = audio.plot_melspectrogram(time_format="seconds", zmin=-60, zmax=-30, showscale="right")
+ax.set_ylim(0, 10000)
+fig.savefig(rf"projects/NeurIPS/images/rebuttle/{log.id} - {log.target} - {log.material} - melspectrogram.pdf", dpi=300)
+
+
+#%%
 # Example of extracting audio
 log = db.session.get(spidb.Log, 152)
 
