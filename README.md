@@ -9,7 +9,7 @@ The raw datasets are available at the following links:
 The processed files (spectrograms, envelopes) is available here: 
 - [Processed Files Stored Product Insect Dataset](https://www.kaggle.com/datasets/dkadyrov/stored-product-insect-dataset-processed-data)
 
-Requests for insect-material-environment recordings can be made to: [daniel.kadyrov@gmail.com](mailto: daniel.kadyrov@gmail.com).
+Requests for insect-material-environment recordings can be made to: [daniel.kadyrov@gmail.com](mailto:daniel.kadyrov@gmail.com).
 Recordings will be uploaded whenever available. 
 
 ## Requirements 
