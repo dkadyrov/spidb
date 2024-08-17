@@ -7,10 +7,24 @@ from spidb import spidb
 from dankpy import file, dt
 import glob
 import pandas as pd
-
+import os 
 
 # Location of database. It will be created if it does not exist.
+if os.path.exists("data/spi.db"):
+    os.remove("data/spi.db")
+
 db = spidb.Database(r"data/spi.db")
+
+aspids = spidb.Sensor(
+    name = "ASPIDS",
+    subname = "Acoustic - Stored Product Insect Detection System",
+    manufacturer = "STAR Center, Stevens Institute of Technology",
+    type_class = "Acoustic",
+    number_of_channels=8
+)
+db.session.add(aspids)
+db.session.commit()
+
 
 # Location of the acoustic files
 acoustic_files = glob.glob(r"data/aspids/**/*.wav", recursive=True)
@@ -19,21 +33,33 @@ acoustic_files = glob.glob(r"data/aspids/**/*.wav", recursive=True)
 files = file.metadatas(acoustic_files, extended=True, stevens=True)
 
 # Add the files to the database
-for f, fi in files.iterrows():
-    ff = spidb.File(
-        filepath=fi.filepath,
-        filename=fi.filename,
-        extension="wav",
-        sample_rate=fi.sample_rate,
-        start=fi.start,
-        end=fi.end,
-        duration=fi.duration,
-        number=fi.record_number,
-        channel=fi.channel,
-        sensor="ASPIDS",
+sonic_files = []
+for i, group in files.groupby("channel"):
+
+    channel = spidb.Channel(
+        number = i, 
+        sensor = aspids
     )
 
-    db.session.add(ff)
+    db.session.add(channel)
+    db.session.commit()
+
+    for j, fi in group.iterrows():
+        ff = spidb.File(
+            filepath=fi.filepath,
+            filename=fi.filename,
+            extension=fi.extension,
+            sample_rate=fi.sample_rate,
+            start=fi.start,
+            end=fi.end,
+            duration=fi.duration,
+            channel=channel,
+            sensor=aspids,
+            channel_number=i
+        )
+
+        sonic_files.append(ff)
+db.session.add_all(sonic_files)
 db.session.commit()
 
 # Location of the ASPID Log File
@@ -51,18 +77,61 @@ log.material = log.material.str.strip()
 log.target = log.target.str.strip()
 
 # Add the logs to the database
-for l, row in log.iterrows():
-    ll = spidb.Log(
-        start=row["start"],
-        end=row["end"],
-        duration=row.duration.total_seconds(),
-        description=row.description,
-        target=row.target,
-        material=row.material,
-        sensor="ASPIDS",
-        noise=row.noise,
-    )
-    db.session.add(ll)
+targets = ["Tribolium confusum", "Tenebrio molitor larva", "Tenebrio molitor", "Callosobruchus maculatus"]
+
+events = [] 
+for t, row in log.groupby(["target", "material"]):
+
+    s = db.session.query(spidb.Subject).filter(spidb.Subject.name == t[0]).first()
+
+    if s is None:
+        s = spidb.Subject(
+            name = t[0],
+        )
+        db.session.add(s)
+        db.session.commit()
+
+    m = db.session.query(spidb.Material).filter(spidb.Material.name == t[1]).first()
+
+    if m is None:
+
+        m = spidb.Material(
+        name = t[1]
+            )
+        db.session.add(m)
+        db.session.commit()
+
+    for l, r in row.iterrows():
+        e = spidb.Event(
+            start=r["start"],
+            end=r["end"],
+            description=r.description,
+            noise=r.noise,
+            material=m,
+            sensor = aspids,
+            # subject=s
+        )
+
+        events.append(e)
+
+        EveSub = spidb.EventSubject(
+            event = e,
+            subject = s,
+        )
+
+        events.append(EveSub)
+db.session.add_all(events)
+db.session.commit()
+
+
+mspids = spidb.Sensor(
+    name = "MSPIDS",
+    subname = "Microwave - Stored Product Insect Detection System",
+    manufacturer = "STAR Center, Stevens Institute of Technology",
+    type_class = "Microwave",
+    number_of_channels=8
+)
+db.session.add(mspids)
 db.session.commit()
 
 # Location of the microwave files
@@ -71,23 +140,35 @@ mspids_files = glob.glob(r"data/mspids/**/*.wav", recursive=True)
 # Get the metadata of the microwave files
 files = file.metadatas(mspids_files, extended=True, stevens=True)
 
-# Add the files to the database
-for f, fi in files.iterrows():
-    ff = spidb.File(
-        filepath=fi.filepath,
-        filename=fi.filename,
-        extension="wav",
-        sample_rate=fi.sample_rate,
-        start=fi.start,
-        end=fi.end,
-        duration=fi.duration,
-        number=fi.record_number,
-        channel=fi.channel,
-        sensor="MSPIDS",
+sonic_files = []
+for i, group in files.groupby("channel"):
+
+    channel = spidb.Channel(
+        number = i, 
+        sensor = aspids
     )
 
-    db.session.add(ff)
+    db.session.add(channel)
+    db.session.commit()
+
+    for j, fi in group.iterrows():
+        ff = spidb.File(
+            filepath=fi.filepath,
+            filename=fi.filename,
+            extension=fi.extension,
+            sample_rate=fi.sample_rate,
+            start=fi.start,
+            end=fi.end,
+            duration=fi.duration,
+            channel=channel,
+            sensor=aspids,
+            channel_number=i
+        )
+
+        sonic_files.append(ff)
+db.session.add_all(sonic_files)
 db.session.commit()
+
 
 # Location of the MSPID Log File
 log = pd.read_csv(r"data/mspids/mspids_log.csv")
@@ -103,17 +184,45 @@ log["duration"] = log["end"] - log["start"]
 log.material = log.material.str.strip()
 log.target = log.target.str.strip()
 
-# Add the logs to the database
-for l, row in log.iterrows():
-    ll = spidb.Log(
-        start=row["start"],
-        end=row["end"],
-        duration=row.duration.total_seconds(),
-        description=row.description,
-        target=row.target,
-        material=row.material,
-        sensor="MSPIDS",
-        noise=row.noise,
-    )
-    db.session.add(ll)
+events = [] 
+for t, row in log.groupby(["target", "material"]):
+    s = db.session.query(spidb.Subject).filter(spidb.Subject.name == t[0]).first()
+
+    if s is None:
+        s = spidb.Subject(
+            name = t[0],
+        )
+        db.session.add(s)
+        db.session.commit()
+
+    m = db.session.query(spidb.Material).filter(spidb.Material.name == t[1]).first()
+
+    if m is None:
+
+        m = spidb.Material(
+        name = t[1]
+            )
+        db.session.add(m)
+        db.session.commit()
+
+    for l, r in row.iterrows():
+        e = spidb.Event(
+            start=r["start"],
+            end=r["end"],
+            description=r.description,
+            noise=r.noise,
+            material=m,
+            sensor=mspids
+            # subject=s
+        )
+
+        events.append(e)
+
+        EveSub = spidb.EventSubject(
+            event = e,
+            subject = s,
+        )
+
+        events.append(EveSub)
+db.session.add_all(events)
 db.session.commit()

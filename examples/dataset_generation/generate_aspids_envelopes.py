@@ -45,9 +45,13 @@ def generate_aspids_envelopes(log):
             a = db.get_audio(start=start, end=end, sensor="ASPIDS", channel=c)
 
             if c < 4:
+<<<<<<< HEAD
                 a.bandpass_filter(2000, 6000, overwrite=True)
+=======
+                a.bandpass_filter(2000, 6000, overwrite=True, order=5)
+>>>>>>> 11a39f2f4bb25990941327361cafc71f171a1afb
             else:
-                a.highpass_filter(500, overwrite=True)
+                a.highpass_filter(500, overwrite=True, order=5)
 
             a.envelope(overwrite=True)
 
