@@ -20,7 +20,7 @@ def detection(internal, external, size):
     return result
 
 
-def pulse_information(db, start, length):
+def pulse_information(db, start, length, sensor):
     channels = np.arange(0, 4).tolist()
     peak_index = []
     peak_height = []
@@ -31,7 +31,7 @@ def pulse_information(db, start, length):
 
     for c in channels:
         a = db.get_audio(
-            start, start + dt.timedelta(seconds=length), channel=c, sensor="Acoustic"
+            start, start + dt.timedelta(seconds=length), channel_number=c, sensor=sensor
         )
         # a.resample(12500)
 
@@ -92,7 +92,7 @@ def threshold_detector(db,
         a = db.get_audio(
             start,
             start + dt.timedelta(seconds=length),
-            channel=int(c),
+            channel_number=int(c),
             sensor="ASPIDS",
         )
         a.resample(12500)
@@ -170,7 +170,7 @@ def acoustic_detector(db,
         a = db.get_audio(
             start,
             start + dt.timedelta(seconds=length),
-            channel=int(c),
+            channel_number=int(c),
             sensor="ASPIDS",
         )
         a.resample(12500)
@@ -259,7 +259,7 @@ def acoustic_detector_v3(db,
         a = db.get_audio(
             start,
             start + dt.timedelta(seconds=length),
-            channel=int(c),
+            channel_number=int(c),
             sensor="ASPIDS",
         )
         a.resample(12500)
@@ -347,7 +347,7 @@ def acoustic_detector_v2(db, start, length=60, internal_cutoff=5, external_cutof
         a = db.get_audio(
             start,
             start + dt.timedelta(seconds=length),
-            channel=int(c),
+            channel_number=int(c),
             sensor="Acoustic",
         )
         a.resample(12500)
@@ -452,7 +452,7 @@ def microwave_detector(db, start, length=60, internal_cutoff=5, external_cutoff=
     channels = np.arange(0, 8).tolist()
     for c in channels:
         a = db.get_audio(
-            start, start + dt.timedelta(seconds=length), channel=c, sensor="Microwave"
+            start, start + dt.timedelta(seconds=length), channel_number=c, sensor="Microwave"
         )
 
         mo[f"ch{c}"] = 0

@@ -81,7 +81,6 @@ targets = ["Tribolium confusum", "Tenebrio molitor larva", "Tenebrio molitor", "
 
 events = [] 
 for t, row in log.groupby(["target", "material"]):
-
     s = db.session.query(spidb.Subject).filter(spidb.Subject.name == t[0]).first()
 
     if s is None:
@@ -145,7 +144,7 @@ for i, group in files.groupby("channel"):
 
     channel = spidb.Channel(
         number = i, 
-        sensor = aspids
+        sensor = mspids
     )
 
     db.session.add(channel)
@@ -161,7 +160,7 @@ for i, group in files.groupby("channel"):
             end=fi.end,
             duration=fi.duration,
             channel=channel,
-            sensor=aspids,
+            sensor=mspids,
             channel_number=i
         )
 
@@ -187,7 +186,6 @@ log.target = log.target.str.strip()
 events = [] 
 for t, row in log.groupby(["target", "material"]):
     s = db.session.query(spidb.Subject).filter(spidb.Subject.name == t[0]).first()
-
     if s is None:
         s = spidb.Subject(
             name = t[0],

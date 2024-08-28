@@ -12,30 +12,29 @@ from scipy import signal
 
 plt.style.use("dankpy.styles.neurips")
 # Initialize the Database
-db = spidb.Database(r"data/spi2.db")
+db = spidb.Database(r"data/spi.db")
 
 #%%
 
-# Find the logs with the specific target and material
-logs = (
-    db.session.query(spidb.Log)
-    .filter(spidb.Log.sensor == "ASPIDS")
-    .filter(spidb.Log.target == "Tribolium confusum")
-    .filter(spidb.Log.material == "Flour")
-    .all()
-)
+sensor = db.session.query(spidb.Sensor).filter(spidb.Sensor.name == "ASPIDS").first()
 
-# Get the last log
-log = logs[-1]
+subject = db.session.query(spidb.Subject).filter(spidb.Subject.name == "Tribolium confusum").first()
+
+material = db.session.query(spidb.Material).filter(spidb.Material.name == "Flour").first()
+
+events = db.session.query(spidb.Event).filter(spidb.Event.sensor == sensor).filter(spidb.Event.subjects.any(subject=subject)).filter(spidb.Event.material == material).all()
+
+# Get the last event
+event = events[-1]
 
 # Find a good time period to display the data
-start = log.start + dt.timedelta(seconds=6.75 * 60)
+start = event.start + dt.timedelta(seconds=6.75 * 60)
 end = start + dt.timedelta(seconds=60)
 
 # Plot the Spectra of the Audio Sensor
 fig, ax = plt.subplots()
 for c in [0, 1, 2, 3]:
-    audio = db.get_audio(start=start, end=end, sensor="ASPIDS", channel=c)
+    audio = db.get_audio(start=start, end=end, sensor=sensor, channel_number=c)
     f, p = signal.welch(
         audio.data.signal,
         fs=audio.sample_rate,
@@ -50,7 +49,7 @@ ax.set_ylim(-125, -25)
 ax.set_xlabel("Frequency [Hz]")
 ax.set_ylabel("Magnitude [dB]")
 ax.set_yticks([-125, -75, -25])
-
+#%%
 
 # Spectrogram Display of the Audio Sensor
 fig, axs = visualizer.spectrogram_display(
@@ -60,7 +59,7 @@ fig, axs = visualizer.spectrogram_display(
     time_format="seconds",
     section="all",
     showscale="True",
-    sensor="ASPIDS",
+    sensor=sensor,
     compressed=True,
 )
 for ax in axs:
@@ -68,7 +67,7 @@ for ax in axs:
     ax.set_yticks([0, 4000, 8000])
 
 # Example of extracting audio
-audio = db.get_audio(start=start, end=end, sensor="ASPIDS", channel=0)
+audio = db.get_audio(start=start, end=end, sensor=sensor, channel_number=0)
 
 # Plotting the Waveform and Envelope
 fig, ax = plt.subplots(ncols=2)
@@ -99,9 +98,9 @@ ax.set_xlim(0, 60)
 ax.set_ylim(0, 400)
 ax.set_xlabel("Time [s]")
 ax.set_ylabel("Normalized Amplitude")
-fig.savefig(rf"projects/NeurIPS/images/rebuttle/{log.id} - {log.target} - {log.material} - envelope (500-6000).pdf", dpi=300)
+# fig.savefig(rf"projects/NeurIPS/images/rebuttle/{event.id} - {event.target} - {event.material} - envelope (500-6000).pdf", dpi=300)
 #%%
-audio = db.get_audio(start=start, end=end, sensor="ASPIDS", channel=0)
+audio = db.get_audio(start=start, end=end, sensor="ASPIDS", channel_number=0)
 
 audio.bandpass_filter(2000, 6000, overwrite=True, order=5)
 
@@ -118,38 +117,39 @@ ax.set_xlim(0, 60)
 ax.set_xlabel("Time [s]")
 ax.set_ylim(0, 600)
 ax.set_ylabel("Normalized Amplitude")
-fig.savefig(rf"projects/NeurIPS/images/rebuttle/{log.id} - {log.target} - {log.material} - envelope (2000-6000).pdf", dpi=300)
+# fig.savefig(rf"projects/NeurIPS/images/rebuttle/{event.id} - {event.target} - {event.material} - envelope (2000-6000).pdf", dpi=300)
 #%%
 import librosa
 
-audio = db.get_audio(start=start, end=end, sensor="ASPIDS", channel=0)
+audio = db.get_audio(start=start, end=end, sensor=sensor, channel_number=0)
 
 
 fig, ax = audio.plot_melspectrogram(time_format="seconds", zmin=-60, zmax=-30, showscale="right")
 ax.set_ylim(0, 10000)
-fig.savefig(rf"projects/NeurIPS/images/rebuttle/{log.id} - {log.target} - {log.material} - melspectrogram.pdf", dpi=300)
+# fig.savefig(rf"projects/NeurIPS/images/rebuttle/{event.id} - {event.target} - {event.material} - melspectrogram.pdf", dpi=300)
 
 
 #%%
 # Example of extracting audio
-log = db.session.get(spidb.Log, 152)
+event = db.session.get(spidb.Event, 53)
 
-start = log.start
+start = event.start
 end = start + dt.timedelta(seconds=60)
-audio = db.get_audio(start=start, end=end, sensor="ASPIDS", channel=7)
+audio = db.get_audio(start=start, end=end, sensor=sensor, channel_number=7)
 
 fig, ax = audio.plot_spectrogram(time_format="seconds", zmin=-140, zmax=-80)
 
 # Example of a Insect in Microwave Sensor
+sensor = db.session.query(spidb.Sensor).filter(spidb.Sensor.name == "MSPIDS").first()
 
-log = db.session.get(spidb.Log, 168)
-start = log.start + dt.timedelta(seconds=4 * 60)
+event = db.session.get(spidb.Event, 223)
+start = event.start + dt.timedelta(seconds=4*60)
 end = start + dt.timedelta(seconds=60)
 
-fig, ax = visualizer.waveform_display(db, start=start, end=end, sensor="MSPIDS", time_format="seconds", compressed=True, normalize=True, filter=True, envelope=True)
+fig, ax = visualizer.waveform_display(db, start=start, end=end, sensor=sensor, time_format="seconds", compressed=True, normalize=True, filter=True, envelope=True)
 
 fig, ax = visualizer.spectrogram_display(
-    db, start=start, end=end, sensor="MSPIDS", time_format="seconds", compressed=True
+    db, start=start, end=end, sensor=sensor, time_format="seconds", compressed=True
 )
 
 # Waveform Display of the Microwave Sensor
@@ -157,7 +157,7 @@ fig, ax = visualizer.waveform_display(
     db,
     start=start,
     end=end,
-    sensor="MSPIDS",
+    sensor=sensor,
     time_format="seconds",
     compressed=True,
     normalize=True,
@@ -170,7 +170,7 @@ fig, ax = visualizer.spectrogram_display(
     db,
     start=start,
     end=end,
-    sensor="MSPIDS",
+    sensor=sensor,
     time_format="seconds",
     section="all",
     showscale="True",
@@ -180,7 +180,7 @@ fig, ax = visualizer.spectrogram_display(
 )
 
 # Spectrogram of the Microwave Sensor with a specific channel
-microwave = db.get_audio(start=start, end=end, sensor="MSPIDS", channel=4)
+microwave = db.get_audio(start=start, end=end, sensor=sensor, channel_number=4)
 fig, ax = microwave.plot_spectrogram(zmin=-100, zmax=-50, time_format="seconds")
 ax.set_ylim(0, 200)
 
@@ -195,15 +195,15 @@ ax.set_xlim(0, 60)
 ax.set_ylim(0, 20)
 
 # Example of a Noisy Microwave Moment
-log = db.session.get(spidb.Log, 240)
-start = log.start + dt.timedelta(seconds=0)
+event = db.session.get(spidb.Event, 189)
+start = event.start + dt.timedelta(seconds=0)
 end = start + dt.timedelta(seconds=60)
 
 fig, ax = visualizer.spectrogram_display(
     db,
     start,
     end,
-    sensor="MSPIDS",
+    sensor=sensor,
     section="all",
     time_format="seconds",
     zmin=-100,
@@ -211,3 +211,4 @@ fig, ax = visualizer.spectrogram_display(
 )
 ax[-1].set_ylim(0, 2000)
 ax[-2].set_ylim(0, 2000)
+#%%
