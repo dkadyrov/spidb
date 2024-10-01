@@ -28,7 +28,7 @@ def waveform_display(
             ncols=2,
             sharex=True,
             layout="compressed",
-            figsize=(3, 4),
+            figsize=(6, 4.5),
         )
 
         axs = axs.flatten(order="F")
@@ -110,9 +110,9 @@ def waveform_display(
             ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=2))
 
         elif time_format == "seconds":
-            ax.plot(a.data["time [s]"], a.data.signal)
+            ax.plot(a.data["seconds"], a.data.signal)
             ax.set_xlim(
-                [round(a.data["time [s]"].min()), round(a.data["time [s]"].max())]
+                [round(a.data["seconds"].min()), round(a.data["seconds"].max())]
             )
 
         if envelope and normalize and filter:
@@ -271,7 +271,7 @@ def spectrogram_display(
                     sharex=True,
                     sharey=True,
                     layout="compressed",
-                    figsize=(3, 4),
+                    figsize=(6, 4.5),
                 )
             else:
                 fig, axs = plt.subplots(
@@ -279,14 +279,14 @@ def spectrogram_display(
                     ncols=2,
                     sharex=True,
                     layout="compressed",
-                    figsize=(3, 4),
+                    figsize=(6, 4.5),
                 )
 
             axs = axs.flatten(order="F")
 
         else:
             fig, axs = plt.subplots(
-                nrows=8, ncols=1, sharex=True, layout="compressed", figsize=(5.6, 3.5)
+                nrows=8, ncols=1, sharex=True, layout="compressed", figsize=(6, 4.5)
             )
 
         channels = np.arange(0, 8).tolist()
@@ -353,16 +353,16 @@ def spectrogram_display(
 
             if sensor.name == "ASPIDS":
                 if c < 4:
-                    ax.set_title(f"Ch. {c} - Piezoelectric")
+                    ax.set_title(f"Piezoelectric - Ch. {c}")
                 else:
-                    ax.set_title(f"Ch. {c} - Microphone")
+                    ax.set_title(f"Microphone - Ch. {c}")
             else:
                 if c < 6:
-                    ax.set_title(f"Ch. {c} - Microwave")
+                    ax.set_title(f"Microwave - Ch. {c}")
                 elif c == 6:
-                    ax.set_title(f"Ch. {c} - Microphone.")
+                    ax.set_title(f"Microphone - Ch. {c} - Microphone.")
                 else:
-                    ax.set_title(f"Ch. {c} - Piezoelectric")
+                    ax.set_title(f"Piezoelectric - Ch. {c}")
 
             ax.yaxis.set_label_position("right")
     if time_format == "datetime":
@@ -382,12 +382,12 @@ def spectrogram_display(
     if showscale:
         if compressed:
             cbar = fig.colorbar(
-                axi, ax=axs.ravel().tolist(), orientation="horizontal", location="top"
+                axi, ax=axs.ravel().tolist(), orientation="horizontal", location="top", aspect=50
             )
             cbar.ax.set_title("Power [dB]")
         else:
             cbar = fig.colorbar(
-                axi, ax=axs.ravel().tolist(), orientation="vertical", location="right"
+                axi, ax=axs.ravel().tolist(), orientation="vertical", location="right", aspect=50
             )
             cbar.ax.set_ylabel("Power [dB]")
     fig.supylabel("Frequency [Hz]")
@@ -506,7 +506,7 @@ def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal
             ncols=1,
             sharex=True,
             # layout="compressed",
-            figsize=(5.6, 4.15),
+            figsize=(6, 4.15),
         )  # mdpi
     if sensor.name == "MSPIDS":
         fig, axs = plt.subplots(
@@ -514,7 +514,7 @@ def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal
             ncols=1,
             sharex=True,
             layout="compressed",
-            figsize=(5.6, (5.6 / 1.6180) * (4 / 2)),
+            figsize=(6, (5.6 / 1.6180) * (4 / 2)),
         )
 
     for i in range(len(internal.columns)):
@@ -528,8 +528,8 @@ def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal
             eligble = mo[mo[row.name] == 1].datetime
             width = 1.1574074074074075e-05
         else:
-            ax.plot(data["time [s]"].values[s_ds], row.values[s_ds])
-            eligble = mo[mo[row.name] == 1]["time [s]"]
+            ax.plot(data["seconds"].values[s_ds], row.values[s_ds])
+            eligble = mo[mo[row.name] == 1]["seconds"]
             width = 1
 
         ax.bar(
@@ -554,8 +554,8 @@ def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal
             eligble = mo[mo[row.name] == 1].datetime
             width = 1.1574074074074075e-05
         else:
-            ax.plot(data["time [s]"][s_ds], row[s_ds])
-            eligble = mo[mo[row.name] == 1]["time [s]"]
+            ax.plot(data["seconds"][s_ds], row[s_ds])
+            eligble = mo[mo[row.name] == 1]["seconds"]
             width = 1
 
         ax.bar(
@@ -585,7 +585,7 @@ def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal
             ax.xaxis.set_minor_locator(mdates.SecondLocator(interval=1))
             ax.set_xlim([min(data["datetime"]), max(data["datetime"])])
         else:
-            ax.set_xlim([min(data["time [s]"]), round(max(data["time [s]"]))])
+            ax.set_xlim([min(data["seconds"]), round(max(data["seconds"]))])
 
     # for i in range(len(data)):
     #     ax = axs[i]
@@ -598,8 +598,8 @@ def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal
     #         eligble = mo[mo[f"{row['label'][:3].lower()}"] == 1].datetime
     #         width = 1.1574074074074075e-05
     #     else:
-    #         ax.plot(row["time [s]"][s_ds], row["signal"][s_ds])
-    #         eligble = mo[mo[f"{row['label'][:3].lower()}"] == 1]["time [s]"]
+    #         ax.plot(row["seconds"][s_ds], row["signal"][s_ds])
+    #         eligble = mo[mo[f"{row['label'][:3].lower()}"] == 1]["seconds"]
     #         width = 1
 
     #     if "Microphone" in row["label"]:
@@ -625,7 +625,7 @@ def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal
     #         ax.set_xlim([min(row["datetime"]), max(row["datetime"])])
     #     else:
     #         # ax.set_xlim([round(row[""].min()), round(times.max())])
-    #         ax.set_xlim([min(row["time [s]"]), round(max(row["time [s]"]))])
+    #         ax.set_xlim([min(row["seconds"]), round(max(row["seconds"]))])
 
     #     ax.get_yaxis().set_label_coords(1.01, 0.6)
 

@@ -1,16 +1,14 @@
-#%% 
-import sonic
-from sonic.models import * 
-
+# %%
+from sonic import sonic, models
 from sqlalchemy import Integer, Column, String, Float, ForeignKey
 from sqlalchemy.orm import relationship
 
-class Subject(Subject): 
 
+class Subject(models.Subject):
     scientific_name = Column(String)
     common_name = Column(String)
     life_cycle = Column(String)
-    weight = Column(Float)      # grams
+    weight = Column(Float)  # grams
     height = Column(Float)
     length = Column(Float)
     width = Column(Float)
@@ -18,14 +16,25 @@ class Subject(Subject):
     density = Column(Float)
 
     events = relationship(
-        "spidb.EventSubject", overlaps="subject", enable_typechecks=False
+        "spidb.Event", back_populates="subject", enable_typechecks=False
     )
+
     __mapper_args__ = {
-        'polymorphic_identity': 'spidb_subject',
+        "polymorphic_identity": "spidb_subject",
     }
 
-class Material(Base):
-    __tablename__ = 'material'
+
+class Sample(models.Sample):
+    material_id = Column(Integer, ForeignKey("material.id"))
+    material = relationship(
+        "spidb.Material", back_populates="samples", enable_typechecks=False
+    )
+
+    noise = Column(String)
+
+
+class Material(models.Base):
+    __tablename__ = "material"
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
@@ -33,22 +42,34 @@ class Material(Base):
     common_name = Column(String)
     density = Column(Float)
 
-    events = relationship("spidb.Event", back_populates="material", enable_typechecks=False)
-
-    __mapper_args__ = {
-        'polymorphic_identity': 'material',
-    }
-
-class Event(Event):
-    subjects = relationship(
-        "spidb.EventSubject", overlaps="event", enable_typechecks=False
+    events = relationship(
+        "spidb.Event", back_populates="material", enable_typechecks=False
     )
 
+    samples = relationship(
+        "spidb.Sample", back_populates="material", enable_typechecks=False
+    )
+
+    __mapper_args__ = {
+        "polymorphic_identity": "material",
+    }
+
+
+class Event(models.Event):
+    # subject_id = Column(Integer, ForeignKey("subject.id"))
+    # subject = relationship(
+    #     "spidb.Subject", back_populates="events", enable_typechecks=False
+    # )
+
     material_id = Column(Integer, ForeignKey("material.id"))
-    material = relationship("spidb.Material", back_populates="events", enable_typechecks=False)
+    material = relationship(
+        "spidb.Material", back_populates="events", enable_typechecks=False
+    )
 
     sensor_id = Column(Integer, ForeignKey("sensor.id"))
-    sensor = relationship("spidb.Sensor", back_populates="events", enable_typechecks=False)
+    sensor = relationship(
+        "spidb.Sensor", back_populates="events", enable_typechecks=False
+    )
 
     noise = Column(String)
 
@@ -57,24 +78,15 @@ class Event(Event):
     }
 
 
-class EventSubject(EventSubject):
-    event = relationship(
-        "spidb.Event", overlaps="subjects", enable_typechecks=False
-    )
-    subject = relationship(
-        "spidb.Subject", overlaps="events", enable_typechecks=False
+class Sensor(models.Sensor):
+    events = relationship(
+        "spidb.Event", back_populates="sensor", enable_typechecks=False
     )
 
     __mapper_args__ = {
-        "polymorphic_identity": "spidb_event_subject",
+        "polymorphic_identity": "spidb_sensor",
     }
 
-class Sensor(Sensor):
-    events = relationship("spidb.Event", back_populates="sensor", enable_typechecks=False)
-
-    __mapper_args__ = {
-        'polymorphic_identity': 'spidb_sensor',
-    }
 
 class Database(sonic.Database):
     def __init__(self, db):
