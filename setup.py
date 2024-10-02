@@ -8,6 +8,6 @@ setup(
     author='Daniel Kadyrov',
     license='MIT',
     install_requires=[
-        "dankpy @ git+https://github.com/dkadyrov/dankpy",
+        "sonic @ git+https://github.com/dkadyrov/sonic",
     ]
 )
