@@ -1,5 +1,5 @@
 # %%
-from sonic import sonic, models
+from sonicdb import sonic, models
 from sqlalchemy import Integer, Column, String, Float, ForeignKey
 from sqlalchemy.orm import relationship
 

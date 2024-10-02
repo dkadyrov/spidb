@@ -2,6 +2,7 @@
 
 This script demonstrates how to generate a database from the acoustic files and log files. It illustrates how to create a database, add files and logs to the database, and commit the changes.
 """
+#%%
 
 from spidb import spidb
 from dankpy import file, dt
@@ -16,7 +17,7 @@ if os.path.exists("data/spi.db"):
 db = spidb.Database(r"data/spi.db")
 
 os.chdir(r"data")
-
+#%%
 aspids = spidb.Sensor(
     name = "ASPIDS",
     subname = "Acoustic - Stored Product Insect Detection System",
