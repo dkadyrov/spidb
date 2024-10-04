@@ -1,4 +1,5 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11390472.svg)](https://doi.org/10.5281/zenodo.11390472)
+[![Documentation Status](https://readthedocs.org/projects/spidb/badge/?version=latest)](https://spidb.readthedocs.io/en/latest/?badge=latest)
 
 # Stored Product Insect Database (SPIDB) 
 
