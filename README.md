@@ -8,9 +8,6 @@ The raw datasets are available at the following links:
 - [Acoustic Stored Product Insect Dataset (A-SPID)](https://www.kaggle.com/datasets/dkadyrov/stored-product-insect-database-spidb-aspids)
 - [Microwave Stored Product Insect Dataset (M-SPID)](https://www.kaggle.com/datasets/dkadyrov/stored-product-insect-database-spidb-mspids)
 
-The processed files (spectrograms, envelopes) is available here: 
-- [Processed Files Stored Product Insect Dataset](https://www.kaggle.com/datasets/dkadyrov/stored-product-insect-dataset-processed-data)
-
 Requests for insect-material-environment recordings can be made to: [daniel.kadyrov@gmail.com](mailto:daniel.kadyrov@gmail.com).
 Recordings will be uploaded whenever available. 
 
