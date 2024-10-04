@@ -16,7 +16,7 @@ Recordings will be uploaded whenever available.
 
 ## Requirements 
 
-I am guilty of using a lot of functions I personally developed and uploaded as the [DANKPY](https://github.com/dkadyrov/spidb). The requirements will install automatically during the pip installation through setupy.py. 
+This package depends on the [Sound Organization and Network Integration for Collection/Collaboration Database (SONICDB)](https://github.com/dkadyrov/sonicdb). The requirements will install automatically during the pip installation through setupy.py. 
 
 ## Installation
 
