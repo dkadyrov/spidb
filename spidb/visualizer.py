@@ -7,6 +7,7 @@ from scipy import signal
 from dankpy import colors
 from matplotlib.patches import Rectangle
 from tsdownsample import MinMaxLTTBDownsampler
+from spidb import spidb
 
 
 # %%
@@ -27,7 +28,7 @@ def waveform_display(
             ncols=2,
             sharex=True,
             layout="compressed",
-            figsize=(3, 4),
+            figsize=(6, 4.5),
         )
 
         axs = axs.flatten(order="F")
@@ -43,12 +44,12 @@ def waveform_display(
     channels = np.arange(0, 8).tolist()
 
     for c in channels:
-        a = db.get_audio(start, end, channel=c, sensor=sensor)
+        a = db.get_audio(start, end, channel_number=c, sensor=sensor)
 
         ax = axs[c]
 
         if filter:
-            if sensor == "ASPIDS":
+            if sensor.name == "ASPIDS":
                 if c < 4:
                     a.bandpass_filter(500, 6000, order=10, overwrite=True)
                 else:
@@ -63,12 +64,12 @@ def waveform_display(
             a.envelope(overwrite=True)
 
         if normalize:
-            if sensor == "ASPIDS":
+            if sensor.name == "ASPIDS":
                 level = np.median(a.data.signal)
                 noise = a.data.signal[a.data.signal < level]
                 a.data.signal = a.data.signal / np.sqrt(np.mean(noise**2))
 
-            if sensor == "MSPIDS":
+            if sensor.name == "MSPIDS":
                 if c < 6:
                     a.data.signal = a.data.signal / 0.1 * a.data.signal.max()
                 else:
@@ -76,7 +77,7 @@ def waveform_display(
                     noise = a.data.signal[a.data.signal < level]
                     a.data.signal = a.data.signal / np.sqrt(np.mean(noise**2))
 
-        if sensor == "ASPIDS":
+        if sensor.name == "ASPIDS":
             if c < 4:
                 ax.set_title(f"Ch. {c} - Piezoelectric")
                 ax.set_ylim(0, 500)
@@ -109,9 +110,9 @@ def waveform_display(
             ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=2))
 
         elif time_format == "seconds":
-            ax.plot(a.data["time [s]"], a.data.signal)
+            ax.plot(a.data["seconds"], a.data.signal)
             ax.set_xlim(
-                [round(a.data["time [s]"].min()), round(a.data["time [s]"].max())]
+                [round(a.data["seconds"].min()), round(a.data["seconds"].max())]
             )
 
         if envelope and normalize and filter:
@@ -142,8 +143,13 @@ def spectrogram_display(
     zmax=None,
     compressed=False,
 ):
+    if isinstance(sensor, spidb.Sensor): 
+        sensor = sensor
+    else: 
+        sensor = db.session.query(spidb.Sensor).filter(spidb.Sensor.sensor.name == sensor).first()
+
     if zmin is None and zmax is None:
-        if sensor == "ASPIDS":
+        if sensor.name == "ASPIDS":
             zmin = -140
             zmax = -80
         else:
@@ -151,7 +157,7 @@ def spectrogram_display(
             zmax = -50
 
     if section == "internal":
-        if sensor == "ASPIDS":
+        if sensor.name == "ASPIDS":
             fig, axs = plt.subplots(
                 nrows=4,
                 ncols=1,
@@ -165,7 +171,7 @@ def spectrogram_display(
 
             for c in channels:
                 ax = axs[c]
-                a = db.get_audio(start, end, channel=c, sensor=sensor)
+                a = db.get_audio(start, end, channel_number=c, sensor=sensor)
 
                 if time_format == "datetime":
                     times, frequencies, spectrogram = a.spectrogram(
@@ -204,7 +210,7 @@ def spectrogram_display(
                 ax.yaxis.set_label_position("right")
                 # ax.get_yaxis().set_label_coords(1.015, 0.6)
     elif section == "external":
-        if sensor == "ASPIDS":
+        if sensor.name == "ASPIDS":
             fig, axs = plt.subplots(
                 nrows=4,
                 ncols=1,
@@ -217,7 +223,7 @@ def spectrogram_display(
 
             for c in channels:
                 ax = axs[c - 4]
-                a = db.get_audio(start, end, channel=c, sensor=sensor)
+                a = db.get_audio(start, end, channel_number=c, sensor=sensor)
 
                 if time_format == "datetime":
                     times, frequencies, spectrogram = a.spectrogram(
@@ -258,14 +264,14 @@ def spectrogram_display(
 
     else:
         if compressed:
-            if sensor == "ASPIDS":
+            if sensor.name == "ASPIDS":
                 fig, axs = plt.subplots(
                     nrows=4,
                     ncols=2,
                     sharex=True,
                     sharey=True,
                     layout="compressed",
-                    figsize=(3, 4),
+                    figsize=(6, 4.5),
                 )
             else:
                 fig, axs = plt.subplots(
@@ -273,20 +279,20 @@ def spectrogram_display(
                     ncols=2,
                     sharex=True,
                     layout="compressed",
-                    figsize=(3, 4),
+                    figsize=(6, 4.5),
                 )
 
             axs = axs.flatten(order="F")
 
         else:
             fig, axs = plt.subplots(
-                nrows=8, ncols=1, sharex=True, layout="compressed", figsize=(5.6, 3.5)
+                nrows=8, ncols=1, sharex=True, layout="compressed", figsize=(6, 4.5)
             )
 
         channels = np.arange(0, 8).tolist()
 
         for c in channels:
-            a = db.get_audio(start, end, channel=c, sensor=sensor)
+            a = db.get_audio(start, end, channel_number=c, sensor=sensor)
 
             if time_format == "datetime":
                 times, frequencies, spectrogram = a.spectrogram(
@@ -323,7 +329,7 @@ def spectrogram_display(
             axi.set_clim([zmin, zmax])
             ax.yaxis.set_label_position("right")
 
-            if sensor == "ASPIDS":
+            if sensor.name == "ASPIDS":
                 fig.sharey = True
                 ax.set_ylim(0, 8000)
                 ax.set_yticks([0, 4000, 8000])
@@ -345,18 +351,18 @@ def spectrogram_display(
                     ax.set_ylim(0, 2000)
                     ax.set_yticks([0, 1000, 2000])
 
-            if sensor == "ASPIDS":
+            if sensor.name == "ASPIDS":
                 if c < 4:
-                    ax.set_title(f"Ch. {c} - Piezoelectric")
+                    ax.set_title(f"Piezoelectric - Ch. {c}")
                 else:
-                    ax.set_title(f"Ch. {c} - Microphone")
+                    ax.set_title(f"Microphone - Ch. {c}")
             else:
                 if c < 6:
-                    ax.set_title(f"Ch. {c} - Microwave")
+                    ax.set_title(f"Microwave - Ch. {c}")
                 elif c == 6:
-                    ax.set_title(f"Ch. {c} - Microphone.")
+                    ax.set_title(f"Microphone - Ch. {c} - Microphone.")
                 else:
-                    ax.set_title(f"Ch. {c} - Piezoelectric")
+                    ax.set_title(f"Piezoelectric - Ch. {c}")
 
             ax.yaxis.set_label_position("right")
     if time_format == "datetime":
@@ -376,12 +382,12 @@ def spectrogram_display(
     if showscale:
         if compressed:
             cbar = fig.colorbar(
-                axi, ax=axs.ravel().tolist(), orientation="horizontal", location="top"
+                axi, ax=axs.ravel().tolist(), orientation="horizontal", location="top", aspect=50
             )
             cbar.ax.set_title("Power [dB]")
         else:
             cbar = fig.colorbar(
-                axi, ax=axs.ravel().tolist(), orientation="vertical", location="right"
+                axi, ax=axs.ravel().tolist(), orientation="vertical", location="right", aspect=50
             )
             cbar.ax.set_ylabel("Power [dB]")
     fig.supylabel("Frequency [Hz]")
@@ -415,7 +421,7 @@ def spectra_display(db, start, end, sensor, section="all", spl=False):
     if section == "all":
         channels = np.arange(0, 8).tolist()
     elif section == "internal":
-        if sensor == "ASPIDS":
+        if sensor.name == "ASPIDS":
             channels = np.arange(0, 4).tolist()
         else:
             channels = np.arange(0, 6).tolist()
@@ -423,7 +429,7 @@ def spectra_display(db, start, end, sensor, section="all", spl=False):
         channels = section
 
     for i, c in enumerate(channels):
-        a = db.get_audio(start, end, channel=c, sensor=sensor)
+        a = db.get_audio(start, end, channel_number=c, sensor=sensor)
 
         a.fade_in(fade_time=2, overwrite=True)
         a.fade_out(fade_time=2, overwrite=True)
@@ -439,7 +445,7 @@ def spectra_display(db, start, end, sensor, section="all", spl=False):
             scaling="spectrum",
         )
 
-        if sensor == "ASPIDS":
+        if sensor.name == "ASPIDS":
             if section == "internal": 
                 color = colors[i]
             else: 
@@ -494,21 +500,21 @@ def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal
     internal.columns = internal.columns.str.replace(" internal", "")
     external.columns = external.columns.str.replace(" external", "")
 
-    if sensor == "ASPIDS":
+    if sensor.name == "ASPIDS":
         fig, axs = plt.subplots(
             nrows=6,
             ncols=1,
             sharex=True,
             # layout="compressed",
-            figsize=(5.6, 4.15),
+            figsize=(6, 4.15),
         )  # mdpi
-    if sensor == "MSPIDS":
+    if sensor.name == "MSPIDS":
         fig, axs = plt.subplots(
             nrows=7,
             ncols=1,
             sharex=True,
             layout="compressed",
-            figsize=(5.6, (5.6 / 1.6180) * (4 / 2)),
+            figsize=(6, (5.6 / 1.6180) * (4 / 2)),
         )
 
     for i in range(len(internal.columns)):
@@ -522,8 +528,8 @@ def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal
             eligble = mo[mo[row.name] == 1].datetime
             width = 1.1574074074074075e-05
         else:
-            ax.plot(data["time [s]"].values[s_ds], row.values[s_ds])
-            eligble = mo[mo[row.name] == 1]["time [s]"]
+            ax.plot(data["seconds"].values[s_ds], row.values[s_ds])
+            eligble = mo[mo[row.name] == 1]["seconds"]
             width = 1
 
         ax.bar(
@@ -539,7 +545,7 @@ def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal
         # ax.bar(eligble, height=10, width=width, color="red", align="center", bottom=90, clip_on=True, zorder=10)
         ax.set_ylabel(f"Ch. {i}")
 
-    if sensor == "ASPIDS":
+    if sensor.name == "ASPIDS":
         ax = axs[i + 1]
         row = external.iloc[:, 3]
         s_ds = MinMaxLTTBDownsampler().downsample(data["datetime"], row, n_out=1000)
@@ -548,8 +554,8 @@ def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal
             eligble = mo[mo[row.name] == 1].datetime
             width = 1.1574074074074075e-05
         else:
-            ax.plot(data["time [s]"][s_ds], row[s_ds])
-            eligble = mo[mo[row.name] == 1]["time [s]"]
+            ax.plot(data["seconds"][s_ds], row[s_ds])
+            eligble = mo[mo[row.name] == 1]["seconds"]
             width = 1
 
         ax.bar(
@@ -579,7 +585,7 @@ def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal
             ax.xaxis.set_minor_locator(mdates.SecondLocator(interval=1))
             ax.set_xlim([min(data["datetime"]), max(data["datetime"])])
         else:
-            ax.set_xlim([min(data["time [s]"]), round(max(data["time [s]"]))])
+            ax.set_xlim([min(data["seconds"]), round(max(data["seconds"]))])
 
     # for i in range(len(data)):
     #     ax = axs[i]
@@ -592,8 +598,8 @@ def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal
     #         eligble = mo[mo[f"{row['label'][:3].lower()}"] == 1].datetime
     #         width = 1.1574074074074075e-05
     #     else:
-    #         ax.plot(row["time [s]"][s_ds], row["signal"][s_ds])
-    #         eligble = mo[mo[f"{row['label'][:3].lower()}"] == 1]["time [s]"]
+    #         ax.plot(row["seconds"][s_ds], row["signal"][s_ds])
+    #         eligble = mo[mo[f"{row['label'][:3].lower()}"] == 1]["seconds"]
     #         width = 1
 
     #     if "Microphone" in row["label"]:
@@ -619,7 +625,7 @@ def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal
     #         ax.set_xlim([min(row["datetime"]), max(row["datetime"])])
     #     else:
     #         # ax.set_xlim([round(row[""].min()), round(times.max())])
-    #         ax.set_xlim([min(row["time [s]"]), round(max(row["time [s]"]))])
+    #         ax.set_xlim([min(row["seconds"]), round(max(row["seconds"]))])
 
     #     ax.get_yaxis().set_label_coords(1.01, 0.6)
 

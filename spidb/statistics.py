@@ -56,13 +56,10 @@ def generate_boxwhisker(df, feature="snr"):
 
     lims = ax.get_xlim()
     ax.set_xticks(np.arange(0, lims[1], lims[1]//len(materials))+lims[1]//(2*len(materials)))
-<<<<<<< HEAD
     ax.vlines(np.arange(0, 20, 4), 0, 100, color="black", alpha=0.25)
     ax.set_xticklabels([material for material in materials], fontsize=8)
-=======
     ax.vlines(np.arange(0, 20, 4), 0, 80, color="black", alpha=0.25)
     ax.set_xticklabels([material for material in materials], fontsize=7)
->>>>>>> 11a39f2f4bb25990941327361cafc71f171a1afb
     plt.tick_params(axis='x', which='both', bottom=False, top=False)
     
     return fig, ax
