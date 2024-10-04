@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11390472.svg)](https://doi.org/10.5281/zenodo.11390472)
+
 # Stored Product Insect Database (SPIDB) 
 
 The Stored Product Insect Database (SPIDB) is the Python package to assist with the Stored Product Insect Database (SPID) available on Kaggle. 
