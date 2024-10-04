@@ -1,6 +1,6 @@
 # %%
 from spidb import spidb
-from dankpy import dt
+from datetime import timedelta
 
 # %%
 db = spidb.Database(r"data/spi.db")
@@ -13,16 +13,17 @@ time_segment = 60  # seconds
 for file in files:
     start = file.start
 
-    if file.end - file.start < dt.timedelta(seconds=time_segment):
+    if file.end - file.start < timedelta(seconds=time_segment):
         end = file.end
     else:
-        end = start + dt.timedelta(seconds=time_segment)
+        end = start + timedelta(seconds=time_segment)
 
     while end <= file.end:
         event = (
             db.session.query(spidb.Event)
             .filter(spidb.Event.start <= end)
             .filter(spidb.Event.end >= start)
+            .filter(spidb.Event.sensor == file.sensor)
             .all()
         )
 
@@ -41,7 +42,7 @@ for file in files:
         db.session.add(s)
 
         start = end
-        end = start + dt.timedelta(seconds=time_segment)
+        end = start + timedelta(seconds=time_segment)
 
 db.session.commit()
 # %%

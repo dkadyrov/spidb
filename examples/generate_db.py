@@ -5,7 +5,7 @@ This script demonstrates how to generate a database from the acoustic files and 
 #%%
 
 from spidb import spidb
-from dankpy import file, dt
+from sonicdb import utilities
 import glob
 import pandas as pd
 import os 
@@ -31,7 +31,7 @@ aspids = spidb.Sensor(
 acoustic_files = glob.glob(r"aspids/**/*.wav", recursive=True)
 
 # Get the metadata of the acoustic files
-files = file.metadatas(acoustic_files, extended=True, stevens=True)
+files = utilities.metadatas(acoustic_files, extended=True, stevens=True)
 
 # Add the files to the database
 sonic_files = []
@@ -95,7 +95,7 @@ for t, row in log.groupby(["target", "material"]):
 
     m = db.session.query(spidb.Material).filter(spidb.Material.name == t[1]).first()
 
-    for l, r in row.iterrows():
+    for i, r in row.iterrows():
         e = spidb.Event(
             start=r["start"],
             end=r["end"],
@@ -121,7 +121,7 @@ mspids = spidb.Sensor(
 mspids_files = glob.glob(r"mspids/**/*.wav", recursive=True)
 
 # Get the metadata of the microwave files
-files = file.metadatas(mspids_files, extended=True, stevens=True)
+files = utilities.metadatas(mspids_files, extended=True, stevens=True)
 
 sonic_files = []
 for i, group in files.groupby("channel"):
