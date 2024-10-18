@@ -3,6 +3,14 @@ from scipy import interpolate, signal
 import numpy as np
 from dankpy import dt
 import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+# import Rectangle
+from matplotlib.patches import Rectangle
+# import MinMaxLTTBDownsampler
+from matplotlib.patches import Rectangle
+from tsdownsample import MinMaxLTTBDownsampler
+
 
 def detection(internal, external, size):
     result = None
@@ -80,7 +88,7 @@ def threshold_detector(db,
     mo["datetime"] = pd.date_range(
         start, start + dt.timedelta(seconds=length), freq="s"
     )
-    mo["time [s]"] = mo.index
+    mo["seconds"] = mo.index
     mo_i = interpolate.interp1d(
         pd.to_numeric(mo.datetime), mo.index, kind="nearest", fill_value="extrapolate"
     )
@@ -112,7 +120,7 @@ def threshold_detector(db,
         if "datetime" not in data.columns:
             data["datetime"] = a.data.datetime
         if "time [s]" not in data.columns:
-            data["time [s]"] = a.data["time [s]"]
+            data["seconds"] = a.data["seconds"]
 
         mo[f"ch{c}"] = 0 
 
@@ -158,7 +166,7 @@ def acoustic_detector(db,
     mo["datetime"] = pd.date_range(
         start, start + dt.timedelta(seconds=length), freq="s"
     )
-    mo["time [s]"] = mo.index
+    mo["seconds"] = mo.index
     mo_i = interpolate.interp1d(
         pd.to_numeric(mo.datetime), mo.index, kind="nearest", fill_value="extrapolate"
     )
@@ -199,7 +207,7 @@ def acoustic_detector(db,
         if "datetime" not in data.columns:
             data["datetime"] = a.data.datetime
         if "time [s]" not in data.columns:
-            data["time [s]"] = a.data["time [s]"]
+            data["seconds"] = a.data["seconds"]
 
         mo[f"ch{c}"] = 0 
 
@@ -247,7 +255,7 @@ def acoustic_detector_v3(db,
     mo["datetime"] = pd.date_range(
         start, start + dt.timedelta(seconds=length), freq="s"
     )
-    mo["time [s]"] = mo.index
+    mo["seconds"] = mo.index
     mo_i = interpolate.interp1d(
         pd.to_numeric(mo.datetime), mo.index, kind="nearest", fill_value="extrapolate"
     )
@@ -288,7 +296,7 @@ def acoustic_detector_v3(db,
         if "datetime" not in data.columns:
             data["datetime"] = a.data.datetime
         if "time [s]" not in data.columns:
-            data["time [s]"] = a.data["time [s]"]
+            data["seconds"] = a.data["seconds"]
 
         mo[f"ch{c}"] = 0 
 
@@ -331,7 +339,7 @@ def acoustic_detector_v2(db, start, length=60, internal_cutoff=5, external_cutof
     mo["datetime"] = pd.date_range(
         start, start + dt.timedelta(seconds=length), freq="s"
     )
-    mo["time [s]"] = mo.index
+    mo["seconds"] = mo.index
     mo_i = interpolate.interp1d(
         pd.to_numeric(mo.datetime), mo.index, kind="nearest", fill_value="extrapolate"
     )
@@ -379,11 +387,11 @@ def acoustic_detector_v2(db, start, length=60, internal_cutoff=5, external_cutof
         if "datetime" not in data.columns:
             data["datetime"] = a.data.datetime
         if "time [s]" not in data.columns:
-            data["time [s]"] = a.data["time [s]"]
+            data["seconds"] = a.data["seconds"]
             # if c < 4:
         #     data[c * 2] = {
         #         "datetime": a.data.datetime,
-        #         "time [s]": a.data["time [s]"],
+        #         "time [s]": a.data["seconds"],
         #         "signal": a.data.signal,
         #         "label": f"Ch{c} Piezo",
         #     }
@@ -391,7 +399,7 @@ def acoustic_detector_v2(db, start, length=60, internal_cutoff=5, external_cutof
         # else:
         #     data[c - (7 - c)] = {
         #         "datetime": a.data.datetime,
-        #         "time [s]": a.data["time [s]"],
+        #         "time [s]": a.data["seconds"],
         #         "signal": a.data.signal,
         #         "label": f"Ch{c} Microphone",
         #     }
@@ -444,7 +452,7 @@ def microwave_detector(db, start, length=60, internal_cutoff=5, external_cutoff=
     mo["datetime"] = pd.date_range(
         start, start + dt.timedelta(seconds=length), freq="s"
     )
-    mo["time [s]"] = mo.index
+    mo["seconds"] = mo.index
     mo_i = interpolate.interp1d(
         pd.to_numeric(mo.datetime), mo.index, kind="nearest", fill_value="extrapolate"
     )
@@ -468,7 +476,7 @@ def microwave_detector(db, start, length=60, internal_cutoff=5, external_cutoff=
             data.append(
                 {
                     "datetime": a.data.datetime,
-                    "time [s]": a.data["time [s]"],
+                    "time [s]": a.data["seconds"],
                     "signal": env,
                     "label": f"Ch{c} Microwave",
                 }
@@ -490,7 +498,7 @@ def microwave_detector(db, start, length=60, internal_cutoff=5, external_cutoff=
             data.append(
                 {
                     "datetime": a.data.datetime,
-                    "time [s]": a.data["time [s]"],
+                    "time [s]": a.data["seconds"],
                     "signal": env,
                     "label": f"Ch{c} Microphone" if c == 6 else f"Ch{c} Piezo",
                 }
@@ -508,3 +516,277 @@ def microwave_detector(db, start, length=60, internal_cutoff=5, external_cutoff=
 
 
 # %%
+
+def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal", sensor="ASPIDS"):
+    # NDT = round(IDT / 2)
+    data = mo["data"]
+    mo = mo["mo"]
+
+    # if style=="minimal":
+
+    # fig, axs = plt.subplots(nrows=len(data)+1, ncols=1, sharex=True, figsize=(1.5*6, 1.5*6), layout="compressed")
+
+    # fig, axs = plt.subplots(nrows=len(data)+1, ncols=1, sharex=True, figsize=(1.5*11.5, 1.5*4.76), layout="compressed")
+
+    # fig, axs = plt.subplots(nrows=len(data)+1, ncols=1, sharex=True, layout="compressed")
+
+    # mo.datetime = mo.datetime - dt.timedelta(seconds=1)
+    mo = mo[mo.datetime >= data["datetime"].min()]
+    mo = mo[mo.datetime <= data["datetime"].max()]
+
+    internal = data.loc[:, data.columns.str.contains("internal")]
+    external = data.loc[:, data.columns.str.contains("external")]
+
+    internal.columns = internal.columns.str.replace(" internal", "")
+    external.columns = external.columns.str.replace(" external", "")
+
+    if sensor.name == "ASPIDS":
+        fig, axs = plt.subplots(
+            nrows=6,
+            ncols=1,
+            sharex=True,
+            # layout="compressed",
+            figsize=(6, 4.15),
+        )  # mdpi
+    if sensor.name == "MSPIDS":
+        fig, axs = plt.subplots(
+            nrows=7,
+            ncols=1,
+            sharex=True,
+            layout="compressed",
+            figsize=(6, (5.6 / 1.6180) * (4 / 2)),
+        )
+
+    for i in range(len(internal.columns)):
+        ax = axs[i]
+        row = internal.iloc[:, i]
+
+        s_ds = MinMaxLTTBDownsampler().downsample(data["datetime"], row, n_out=1000)
+
+        if time_format == "datetime":
+            ax.plot(data["datetime"].values[s_ds], row.values[s_ds])
+            eligble = mo[mo[row.name] == 1].datetime
+            width = 1.1574074074074075e-05
+        else:
+            ax.plot(data["seconds"].values[s_ds], row.values[s_ds])
+            eligble = mo[mo[row.name] == 1]["seconds"]
+            width = 1
+
+        ax.bar(
+            eligble,
+            height=10,
+            width=width,
+            color="red",
+            align="center",
+            bottom=90,
+            clip_on=True,
+            zorder=10,
+        )
+        # ax.bar(eligble, height=10, width=width, color="red", align="center", bottom=90, clip_on=True, zorder=10)
+        ax.set_ylabel(f"Ch. {i}")
+
+    if sensor.name == "ASPIDS":
+        ax = axs[i + 1]
+        row = external.iloc[:, 3]
+        s_ds = MinMaxLTTBDownsampler().downsample(data["datetime"], row, n_out=1000)
+        if time_format == "datetime":
+            ax.plot(data["datetime"][s_ds], row[s_ds])
+            eligble = mo[mo[row.name] == 1].datetime
+            width = 1.1574074074074075e-05
+        else:
+            ax.plot(data["seconds"][s_ds], row[s_ds])
+            eligble = mo[mo[row.name] == 1]["seconds"]
+            width = 1
+
+        ax.bar(
+            eligble,
+            height=10,
+            width=width,
+            color="blue",
+            align="center",
+            bottom=90,
+            clip_on=True,
+            zorder=10,
+        )
+        # ax.bar(eligble, height=10, width=width, color="blue", align="center", bottom=90, clip_on=True, zorder=10)
+        ax.set_ylabel("Mic.")
+
+    for i in range(len(axs) - 1):
+        ax = axs[i]
+        ax.yaxis.set_label_position("right")
+        # ax.set_ylim([0, 100])
+        # ax.set_yticks([0, 50, 100])
+        ax.set_ylim(0, 100)
+        ax.set_yticks([0, 50, 100])
+
+        if time_format == "datetime":
+            myFmt = mdates.DateFormatter("%H:%M:%S")
+            ax.xaxis.set_major_formatter(myFmt)
+            ax.xaxis.set_minor_locator(mdates.SecondLocator(interval=1))
+            ax.set_xlim([min(data["datetime"]), max(data["datetime"])])
+        else:
+            ax.set_xlim([min(data["seconds"]), round(max(data["seconds"]))])
+
+    # for i in range(len(data)):
+    #     ax = axs[i]
+    #     row = data[i]
+
+    #     s_ds = MinMaxLTTBDownsampler().downsample(row["datetime"], row["signal"], n_out = 1000)
+
+    #     if method == "datetime":
+    #         ax.plot(row["datetime"][s_ds], row["signal"][s_ds])
+    #         eligble = mo[mo[f"{row['label'][:3].lower()}"] == 1].datetime
+    #         width = 1.1574074074074075e-05
+    #     else:
+    #         ax.plot(row["seconds"][s_ds], row["signal"][s_ds])
+    #         eligble = mo[mo[f"{row['label'][:3].lower()}"] == 1]["seconds"]
+    #         width = 1
+
+    #     if "Microphone" in row["label"]:
+    #         ax.bar(eligble, height=1, width=width, color="blue", align="center", bottom=19, clip_on=True, zorder=10)
+    #         # ax.scatter(eligble, [20]*len(eligble), marker="s", c="blue", s=10, alpha=1, clip_on=False, zorder=10)
+    #     elif row["label"] == "Ch7 Piezo":
+    #         ax.bar(eligble, height=1, width=width, color="blue", align="center", bottom=19, clip_on=True, zorder=10)
+    #         # ax.scatter(eligble, [20]*len(eligble), marker="s", c="blue", s=10, alpha=1, clip_on=False, zorder=10)
+    #     else:
+    #         # ax.scatter(eligble, [20]*len(eligble), marker="s", c="red", s=10, alpha=1, clip_on=False, zorder=10)
+    #         ax.bar(eligble, height=1, width=width, color="red", align="center", bottom=19, clip_on=True, zorder=10)
+
+    #     # ax.plot(row["datetime"], row["signal"])
+    #     ax.set_ylabel(row["label"], rotation=0, horizontalalignment='left')
+    #     ax.yaxis.set_label_position("right")
+    #     ax.set_ylim([0, 20])
+    #     ax.set_yticks([0, 10, 20])
+
+    #     if method == "datetime":
+    #         myFmt = mdates.DateFormatter('%H:%M:%S')
+    #         ax.xaxis.set_major_formatter(myFmt)
+    #         ax.xaxis.set_minor_locator(mdates.SecondLocator(interval=1))
+    #         ax.set_xlim([min(row["datetime"]), max(row["datetime"])])
+    #     else:
+    #         # ax.set_xlim([round(row[""].min()), round(times.max())])
+    #         ax.set_xlim([min(row["seconds"]), round(max(row["seconds"]))])
+
+    #     ax.get_yaxis().set_label_coords(1.01, 0.6)
+
+    ax = axs[-1]
+    hits = mo[mo["detection"] == "Detection"]
+    false_flags = mo[mo["detection"] == "Noise"]
+    clean = mo[mo.detection.isna()]
+
+    if time_format == "datetime":
+        ax.bar(
+            clean.datetime,
+            height=1,
+            width=width,
+            color="green",
+            align="center",
+            clip_on=True,
+            zorder=1,
+        )
+        ax.bar(
+            hits.datetime,
+            height=1,
+            width=width,
+            color="red",
+            align="center",
+            clip_on=True,
+            zorder=2,
+        )
+        ax.bar(
+            false_flags.datetime,
+            height=1,
+            width=width,
+            color="blue",
+            align="center",
+            clip_on=True,
+            zorder=3,
+        )
+    elif time_format == "seconds":
+        ax.bar(
+            clean.index.tolist(),
+            height=1,
+            width=width,
+            color="green",
+            align="center",
+            clip_on=True,
+            zorder=1,
+        )
+        ax.bar(
+            hits.index.tolist(),
+            height=1,
+            width=width,
+            color="red",
+            align="center",
+            clip_on=True,
+            zorder=2,
+        )
+        ax.bar(
+            false_flags.index.tolist(),
+            height=1,
+            width=width,
+            color="blue",
+            align="center",
+            clip_on=True,
+            zorder=3,
+        )
+
+    # ax.scatter(hits.datetime, [1]*len(hits), s=10, c="green", marker="s")
+    # ax.scatter(false_flags.datetime, [1]*len(false_flags), s=10, c="red", marker="s")
+    ax.set_ylim([0, 1])
+    ax.set_yticklabels([])
+    ax.set_yticks([])
+    fig.align_ylabels()
+    ax.yaxis.set_label_position("right")
+
+    if time_format == "datetime":
+        fig.supxlabel(f"Time on {data['datetime'][0].date()}")
+    else:
+        fig.supxlabel("Time [s]")
+
+    fig.supylabel("Relative Normalized Amplitude")
+
+    ax = axs[0]
+
+    values = mo["detection"].value_counts()
+    if "Noise" in values.index and values["Noise"] >= NDT:
+        text = "Noise"
+        color = "blue"
+    elif "Detection" in values.index and values["Detection"] >= IDT:
+        text = "Infested"
+        color = "red"
+    else:
+        text = "Clean"
+        color = "green"
+    # check number of detections in the detection column
+
+    ax.add_patch(
+        Rectangle(
+            (0, 150),
+            len(mo) - 1,
+            100,
+            facecolor=color,
+            clip_on=False,
+            linewidth=1,
+            edgecolor="black",
+            fill=True,
+        )
+    )
+    ax.text(
+        (len(mo) - 1) / 2,
+        200,
+        text,
+        fontsize=18,
+        zorder=5,
+        color="white",
+        horizontalalignment="center",
+        verticalalignment="center_baseline",
+        fontweight="bold",
+    )
+
+    # ax.add_patch(Rectangle((0,150), 60, 100,facecolor=color,
+    #                           clip_on=False,linewidth = 1, edgecolor="black", fill=True))
+    # ax.text(30, 200, text, fontsize = 20 ,zorder = 5, fontweight="extra bold", fontstretch="ultra-expanded",
+    #             color = 'white', horizontalalignment="center", verticalalignment="center_baseline")
+
+    return fig, axs

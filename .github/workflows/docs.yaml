@@ -1,0 +1,29 @@
+name: Publish to TestPyPi
+
+on:
+  push:
+    branches:
+      - main  # Trigger the workflow on push to the main branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'  # Specify your Python version
+
+    - name: Install Hatch
+      run: pip install hatch
+
+    - name: Install dependencies
+      run: hatch env create
+
+    - name: Build and publish package
+      run: hatch run docs-build-html
+

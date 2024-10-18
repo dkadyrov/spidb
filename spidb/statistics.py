@@ -37,7 +37,7 @@ def generate_boxwhisker(df, feature="snr"):
         for i in targets:
         # for i in data.target.unique():
             g = group[group["target"] == i]
-            b = ax.boxplot(g[feature].values, positions=[j+0.5], showfliers=False, boxprops=dict(facecolor=colors[c]), medianprops=dict(color="black", linewidth= 0), patch_artist=True, widths=0.25, showcaps=True, notch=False, whis=1.5)
+            b = ax.boxplot(g[feature].values, positions=[j+0.5], showfliers=False, boxprops=dict(facecolor=colors[c]), medianprops=dict(color="black", linewidth= 0), patch_artist=True, widths=0.25, showcaps=False, notch=False, whis=0)
             j += 1
             c += 1
             artists.append(b)
