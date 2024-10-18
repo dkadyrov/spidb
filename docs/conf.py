@@ -9,7 +9,9 @@ extensions = [
     "sphinx_click",
     "myst_parser",
     "sphinx.ext.intersphinx",
+    "sphinx_copybutton",
 ]
 autodoc_typehints = "description"
 html_theme = "furo"
 master_doc = "index"
+html_title = "SPIDB"

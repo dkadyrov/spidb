@@ -12,6 +12,7 @@ dependencies = [
     "sphinx",
     "sphinx-click",
     "sphinx-autobuild",
+    "sphinx-copybutton",
     "furo",
     "myst-parser"
 ] 

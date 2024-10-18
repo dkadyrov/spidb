@@ -56,11 +56,6 @@ class Material(models.Base):
 
 
 class Event(models.Event):
-    # subject_id = Column(Integer, ForeignKey("subject.id"))
-    # subject = relationship(
-    #     "spidb.Subject", back_populates="events", enable_typechecks=False
-    # )
-
     material_id = Column(Integer, ForeignKey("material.id"))
     material = relationship(
         "spidb.Material", back_populates="events", enable_typechecks=False
