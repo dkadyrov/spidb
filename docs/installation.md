@@ -14,7 +14,7 @@ There is no plan to release the package on PyPI at this time.
 
 ## Installation from GitHub
 
-You can download the package from GitHub and install it using the following commands:
+The package can be downloaded directly from GitHub and installed using the following commands:
 
 ```bash
 git clone https://github.com/dkadyrov/spidb
