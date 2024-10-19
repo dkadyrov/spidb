@@ -13,7 +13,7 @@ usage
 :hidden:
 
 GitHub Repo<https://github.com/dkadyrov/spidb>
-Documentation (PDF)<https://spidb.pdf>
+Publication <https://www.mdpi.com/1424-8220/24/20/6736>
 ```
 
 
