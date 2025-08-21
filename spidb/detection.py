@@ -1,792 +1,417 @@
 # %%
-from scipy import interpolate, signal
-import numpy as np
-from dankpy import dt
-import pandas as pd
+from datetime import datetime, timedelta
+
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-# import Rectangle
-from matplotlib.patches import Rectangle
-# import MinMaxLTTBDownsampler
-from matplotlib.patches import Rectangle
-from tsdownsample import MinMaxLTTBDownsampler
+import numpy as np
+import pandas as pd
+from matplotlib.font_manager import FontProperties
+from matplotlib.patches import Patch
+from sonicdb import audio
 
+from spidb import normalization, spidb
+from dankpy import acoustics
+import copy
 
-def detection(internal, external, size):
+def detection_algorithm(internal: int, external: int, size: int) -> str:
+    """
+    Detection algorithm
+
+    Args:
+        internal (int): internal value
+        external (int): external value
+        size (int): size value
+
+    Returns:
+        str: result
+    """
     result = None
 
-    if internal <= size and internal > 0:
-        # if internal <= size:
-        result = "Detection"
+    if internal < size and internal > 0:
+        if external >= 1:
+            result = "Noise"
 
-    # if internal == size:
-    # result = "Noise"
+        else:
+            result = "Insect"
 
-    if external >= 1:
+    if internal == size:
         result = "Noise"
 
     return result
 
 
-def pulse_information(db, start, length, sensor):
-    channels = np.arange(0, 4).tolist()
-    peak_index = []
-    peak_height = []
-    peak_width = []
-    peak_prominence = []
-    peak_channel = []
-    peak_datetime = []
+def classification_algorithm(detection: pd.Series | list, DT: int, NT: int) -> str:
+    """
+    Classification algorithm
 
-    for c in channels:
+    Args:
+        detection (pd.Series|list): detection values
+        DT (int): Detection threshold
+        NT (int): Noise threshold
+
+    Returns:
+        str: result
+    """
+
+    # The detection variable is a list or pandas series with the values as None, Insect, or Noise. If the number of Insect values is greater than the detection threshold, the outcome is Insect. If the number of Noise values is greater than the noise threshold, the outcome is Noise. Otherwise, the outcome is None.
+
+    outcome = "Clean"
+
+    if (detection == "Insect").sum() >= DT:
+        outcome = "Insect"
+
+    if (detection == "Noise").sum() >= NT:
+        outcome = "Noise"
+
+    return outcome
+
+def retreive_acoustic_data(db, sensor, start, end=None, channels=[0, 1, 2, 3, 7], duration=60):
+    
+    data = []
+
+    channels = [sensor.channels[i] for i in channels]
+    for channel in channels:
         a = db.get_audio(
-            start, start + dt.timedelta(seconds=length), channel_number=c, sensor=sensor
+            start=start,
+            end=start + timedelta(seconds=duration),
+            sensor=sensor,
+            channel_number=channel.number,
         )
-        # a.resample(12500)
-
-        a.bandpass_filter(2000, 6000, order=8, overwrite=True)
-
-        a.data.signal = a.envelope()
-
-        a.data.signal = a.data.signal / np.max(np.abs(a.data.signal))
-
-        peaks = signal.find_peaks(
-            a.data.signal, height=0.25, prominence=0.25, distance=a.sample_rate / 2
-        )
-        widths = signal.peak_widths(
-            a.data.signal, peaks[0], rel_height=0.9, wlen=a.sample_rate
-        )
-
-        peak_index.extend(peaks[0])
-        peak_height.extend(peaks[1]["peak_heights"])
-        peak_width.extend(widths[0])
-        peak_prominence.extend(peaks[1]["prominences"])
-        peak_channel.extend([c] * len(peaks[0]))
-        peak_datetime.extend(a.data.datetime[peaks[0]])
-
-        # data[c] = {
-        #     "peaks": a.data.signal[peaks],
-        #     "width": width
-        # }
-
-    data = {
-        "datetime": peak_datetime,
-        "peak_channel": peak_channel,
-        "peak_index": peak_index,
-        "peak_height": peak_height,
-        "peak_width": peak_width,
-        "peak_prominence": peak_prominence,
-    }
+        data.append(a)
 
     return data
 
-def threshold_detector(db, 
-    start, length=60, internal_cutoff=5, external_cutoff=3, keep_data=True, internal_channels=[0, 1, 2, 3], external_channels=[4,5,6,7]
+def acoustic_detection(
+    channels,
+    IT=5,
+    ET=5,
+    DR=30,
+    NR=30,
+    internal_filt=[1625, 5400],
+    external_filt=[1625, 5400],
+    scaling_i=2,
+    scaling_e=2,
+    return_audio = False
 ):
+    data = pd.DataFrame()
+    internal_signals = []
 
+    # create a copy of the channels list to avoid modifying the original list
+    channels = [copy.deepcopy(channel) for channel in channels]
 
-    mo = pd.DataFrame()
-    mo["datetime"] = pd.date_range(
-        start, start + dt.timedelta(seconds=length), freq="s"
-    )
-    mo["seconds"] = mo.index
-    mo_i = interpolate.interp1d(
-        pd.to_numeric(mo.datetime), mo.index, kind="nearest", fill_value="extrapolate"
-    )
+    audio_data = pd.DataFrame()
 
-    channels = np.arange(0, 8).tolist()
-    data = pd.DataFrame()  # [{}] * len(channels)
+    for i, a in enumerate(channels):
+        a.fade_in(1, overwrite=True)
+        a.fade_out(1, overwrite=True)
 
-    for c in channels:
-        a = db.get_audio(
-            start,
-            start + dt.timedelta(seconds=length),
-            channel_number=int(c),
-            sensor="ASPIDS",
-        )
-        a.resample(12500)
-
-        if c < 4:
-            a.bandpass_filter(500, 6000, order=10, overwrite=True)
-        else:
-            a.highpass_filter(500, order=10, overwrite=True)
-
-        a.envelope(overwrite=True)
-
-        level = np.median(a.data.signal)
-        noise = a.data.signal[a.data.signal < level]
-
-        a.data.signal = a.data.signal / (2*np.sqrt(np.mean(noise**2)))
-
-        if "datetime" not in data.columns:
-            data["datetime"] = a.data.datetime
-        if "time [s]" not in data.columns:
-            data["seconds"] = a.data["seconds"]
-
-        mo[f"ch{c}"] = 0 
-
-        if c < 4:
-            mo.loc[
-                mo_i(a.data[a.data.signal >= internal_cutoff].datetime), f"ch{c}"
-            ] = 1
-            data[f"ch{c} internal"] = a.data.signal
-
-        else:
-            mo.loc[
-                mo_i(a.data[a.data.signal >= external_cutoff].datetime), f"ch{c}"
-            ] = 1
-            data[f"ch{c} external"] = a.data.signal
-
-    mo["internal"] = mo[[f"ch{c}" for c in internal_channels]].sum(axis=1)
-    mo["external"] = mo[[f"ch{c}" for c in external_channels]].sum(axis=1)
-    mo["detection"] = mo.apply(
-        lambda x: detection(x.internal, x.external, size=4), axis=1
-    )
-
-    info = {
-        "mo": mo,
-        "sensor": "ASPIDS",
-
-    }
-
-    if keep_data is True:
-        # mo.attrs = {"data": data, "sensor": "ASPIDS"}
-        info["data"] = data
-
-    return info
-
-# noise = pd.read_pickle(r"data/noise_500-6000.pkl")
-
-def acoustic_detector(db, 
-    start, length=60, internal_cutoff=5, external_cutoff=3, keep_data=True, internal_channels=[0, 1, 2, 3], external_channels=[4,5,6,7]
-):
-
-    # metrics = noise.attrs["metrics"]
-
-    mo = pd.DataFrame()
-    mo["datetime"] = pd.date_range(
-        start, start + dt.timedelta(seconds=length), freq="s"
-    )
-    mo["seconds"] = mo.index
-    mo_i = interpolate.interp1d(
-        pd.to_numeric(mo.datetime), mo.index, kind="nearest", fill_value="extrapolate"
-    )
-
-    channels = np.arange(0, 8).tolist()
-    data = pd.DataFrame()  # [{}] * len(channels)
-
-    for c in channels:
-        a = db.get_audio(
-            start,
-            start + dt.timedelta(seconds=length),
-            channel_number=int(c),
-            sensor="ASPIDS",
-        )
-        a.resample(12500)
-
-        if c < 4:
-            a.bandpass_filter(500, 6000, order=10, overwrite=True)
-        else:
-            a.highpass_filter(100, order=10, overwrite=True)
-
-        a.envelope(overwrite=True)
-
-        if c < 4: 
-            level = 5*np.median(a.data.signal)
-        else: 
-            level = 0.5*np.median(a.data.signal)
-        
-        noise = a.data.signal[a.data.signal < level]
-        # a.data.signal = a.data.signal / metrics[f"{int(c)}"]["rms"]
-
-        # if c < 4: 
-        a.data.signal = a.data.signal / (np.sqrt(np.mean(noise**2)))
-        
-        # a.data.signal = 20*np.log10(a.data.signal)
-        # else: 
-            # a.data.signal = a.data.signal / (np.sqrt(np.mean(noise**2)))            
-        if "datetime" not in data.columns:
-            data["datetime"] = a.data.datetime
-        if "time [s]" not in data.columns:
-            data["seconds"] = a.data["seconds"]
-
-        mo[f"ch{c}"] = 0 
-
-        if c < 4:
-            mo.loc[
-                mo_i(a.data[a.data.signal >= internal_cutoff].datetime), f"ch{c}"
-            ] = 1
-            data[f"ch{c} internal"] = a.data.signal
-
-        else:
-            mo.loc[
-                mo_i(a.data[a.data.signal >= external_cutoff].datetime), f"ch{c}"
-            ] = 1
-            data[f"ch{c} external"] = a.data.signal
-
-        mo[f"ch{c}_max"] = (
-            a.data.groupby(pd.Grouper(freq="s", key="datetime"))
-            .max()
-            .reset_index()["signal"]
-        )
-
-    mo["internal"] = mo[[f"ch{c}" for c in internal_channels]].sum(axis=1)
-    mo["external"] = mo[[f"ch{c}" for c in external_channels]].sum(axis=1)
-    mo["detection"] = mo.apply(
-        lambda x: detection(x.internal, x.external, size=4), axis=1
-    )
-
-    info = {
-        "mo": mo,
-        "sensor": "ASPIDS",
-    }
-
-    if keep_data is True:
-        info["data"] = data
-
-    return info
-
-def acoustic_detector_v3(db, 
-    start, length=60, internal_cutoff=5, external_cutoff=3, keep_data=True, internal_channels=[0, 1, 2, 3], external_channels=[4,5,6,7]
-):
-
-    # metrics = noise.attrs["metrics"]
-
-    mo = pd.DataFrame()
-    mo["datetime"] = pd.date_range(
-        start, start + dt.timedelta(seconds=length), freq="s"
-    )
-    mo["seconds"] = mo.index
-    mo_i = interpolate.interp1d(
-        pd.to_numeric(mo.datetime), mo.index, kind="nearest", fill_value="extrapolate"
-    )
-
-    channels = np.arange(0, 8).tolist()
-    data = pd.DataFrame()  # [{}] * len(channels)
-
-    for c in channels:
-        a = db.get_audio(
-            start,
-            start + dt.timedelta(seconds=length),
-            channel_number=int(c),
-            sensor="ASPIDS",
-        )
-        a.resample(12500)
-
-        if c < 4:
-            a.bandpass_filter(500, 6000, order=10, overwrite=True)
-        else:
-            a.highpass_filter(100, order=10, overwrite=True)
-
-        a.envelope(overwrite=True)
-
-        if c < 4: 
-            level = np.median(a.data.signal)
-        else: 
-            level = 0.5*np.median(a.data.signal)
-        
-        noise = a.data.signal[a.data.signal < level]
-        # a.data.signal = a.data.signal / metrics[f"{int(c)}"]["rms"]
-
-        # if c < 4: 
-        a.data.signal = a.data.signal / (np.sqrt(np.mean(noise**2)))
-        
-        # a.data.signal = 20*np.log10(a.data.signal)
-        # else: 
-            # a.data.signal = a.data.signal / (np.sqrt(np.mean(noise**2)))            
-        if "datetime" not in data.columns:
-            data["datetime"] = a.data.datetime
-        if "time [s]" not in data.columns:
-            data["seconds"] = a.data["seconds"]
-
-        mo[f"ch{c}"] = 0 
-
-        if c < 4:
-            mo.loc[
-                mo_i(a.data[a.data.signal >= internal_cutoff].datetime), f"ch{c}"
-            ] = 1
-            data[f"ch{c} internal"] = a.data.signal
-
-        else:
-            mo.loc[
-                mo_i(a.data[a.data.signal >= external_cutoff].datetime), f"ch{c}"
-            ] = 1
-            data[f"ch{c} external"] = a.data.signal
-
-        mo[f"ch{c}_max"] = (
-            a.data.groupby(pd.Grouper(freq="s", key="datetime"))
-            .max()
-            .reset_index()["signal"]
-        )
-
-    mo["internal"] = mo[[f"ch{c}" for c in internal_channels]].sum(axis=1)
-    mo["external"] = mo[[f"ch{c}" for c in external_channels]].sum(axis=1)
-    mo["detection"] = mo.apply(
-        lambda x: detection(x.internal, x.external, size=4), axis=1
-    )
-
-    info = {
-        "mo": mo,
-        "sensor": "ASPIDS",
-    }
-
-    if keep_data is True:
-        info["data"] = data
-
-    return info
-
-def acoustic_detector_v2(db, start, length=60, internal_cutoff=5, external_cutoff=3):
-    mo = pd.DataFrame()
-    mo["datetime"] = pd.date_range(
-        start, start + dt.timedelta(seconds=length), freq="s"
-    )
-    mo["seconds"] = mo.index
-    mo_i = interpolate.interp1d(
-        pd.to_numeric(mo.datetime), mo.index, kind="nearest", fill_value="extrapolate"
-    )
-
-    noise = pd.read_pickle(r"data/noise1.pkl")
-
-    channels = np.arange(0, 8).tolist()
-    data = pd.DataFrame()  # [{}] * len(channels)
-
-    for c in channels:
-        metrics = noise.attrs["metrics"][f"{int(c)}"]
-
-        a = db.get_audio(
-            start,
-            start + dt.timedelta(seconds=length),
-            channel_number=int(c),
-            sensor="Acoustic",
-        )
-        a.resample(12500)
-
-        if c < 4:
-            # a.bandpass_filter(1000, 4000, order=8, overwrite=True)
-            a.bandpass_filter(2000, 6000, order=8, overwrite=True)
-        else:
-            a.highpass_filter(100, order=8, overwrite=True)
-            # a.bandpass_filter(1500, 4000, order=8, overwrite=True)
-
-        a.fade_in(fade_time=1, overwrite=True)
-        a.fade_out(fade_time=1, overwrite=True)
-        a.data.signal = a.envelope()
-
-        cutoff = metrics["max"] / metrics["rms"]
-
-        a.data.signal = a.data.signal / metrics["rms"]
-
-        # if c >= 4:
-        # level = 8.5 * np.median(a.data.signal)
-        # noise = a.data.signal[a.data.signal < level]
-
-        # if c == 7:
-        # print("pause here")
-
-        # a.data.signal = a.data.signal / np.sqrt(np.mean(noise ** 2))
-
-        if "datetime" not in data.columns:
-            data["datetime"] = a.data.datetime
-        if "time [s]" not in data.columns:
-            data["seconds"] = a.data["seconds"]
-            # if c < 4:
-        #     data[c * 2] = {
-        #         "datetime": a.data.datetime,
-        #         "time [s]": a.data["seconds"],
-        #         "signal": a.data.signal,
-        #         "label": f"Ch{c} Piezo",
-        #     }
-
-        # else:
-        #     data[c - (7 - c)] = {
-        #         "datetime": a.data.datetime,
-        #         "time [s]": a.data["seconds"],
-        #         "signal": a.data.signal,
-        #         "label": f"Ch{c} Microphone",
-        #     }
-        # mo_a = interpolate.interp1d(
-        #     pd.to_numeric(a.data.datetime), a.data.signal, kind="linear", fill_value="extrapolate"
-        # )
-
-        # mo[f"ch{c}_max"] = mo.datetime.apply(lambda x: a.data.signal[(a.data.datetime >= x) & (a.data.datetime <= x + dt.timedelta(seconds=1))].max())
-
-        mo[f"ch{c}_max"] = (
-            a.data.groupby(pd.Grouper(freq="S", key="datetime"))
-            .max()
-            .reset_index()["signal"]
-        )
-
-        mo[f"ch{c}_pulses"] = a.data.groupby(pd.Grouper(freq="S", key="datetime"))[
-            "signal"
-        ].agg(lambda x: ((x >= internal_cutoff) * 1).sum())
-
-        # mo[f"ch{c}_width"] = mo[f"ch{c}_max"].apply(lambda x: signal.peak_widths(a.data.signal, a.data.signal[a.data.signal == x].index)[0][0])
-
-        if c < 4:
-            mo.loc[
-                mo_i(a.data[a.data.signal >= internal_cutoff].datetime), f"ch{c}"
-            ] = 1
-            data[f"ch{c} internal"] = a.data.signal
-
-        else:
-            mo.loc[
-                mo_i(a.data[a.data.signal >= external_cutoff].datetime), f"ch{c}"
-            ] = 1
-            data[f"ch{c} external"] = a.data.signal
-
-    mo["internal"] = mo[[f"ch{c}" for c in range(4)]].sum(axis=1)
-    mo["external"] = mo[[f"ch{c}" for c in [7]]].sum(axis=1)
-    # mo["external"] = mo[[f"ch{c}" for c in [range(4, 8)]]].sum(axis=1)
-    mo["detection"] = mo.apply(
-        lambda x: detection(x.internal, x.external, size=4), axis=1
-    )
-
-    mo.attrs = {"data": data, "sensor": "Acoustic"}
-
-    return mo
-
-
-def microwave_detector(db, start, length=60, internal_cutoff=5, external_cutoff=10):
-    data = []
-
-    mo = pd.DataFrame()
-    mo["datetime"] = pd.date_range(
-        start, start + dt.timedelta(seconds=length), freq="s"
-    )
-    mo["seconds"] = mo.index
-    mo_i = interpolate.interp1d(
-        pd.to_numeric(mo.datetime), mo.index, kind="nearest", fill_value="extrapolate"
-    )
-
-    channels = np.arange(0, 8).tolist()
-    for c in channels:
-        a = db.get_audio(
-            start, start + dt.timedelta(seconds=length), channel_number=c, sensor="Microwave"
-        )
-
-        mo[f"ch{c}"] = 0
-        if c < 6:
-            a.resample(1000)
-            a.lowpass_filter(100, order=8, overwrite=True)
-            env = a.envelope()
-
-            level = 2 * np.median(env)
-            noise = env[env < level]
-            env = env / np.sqrt(np.mean(noise**2))
-
-            data.append(
-                {
-                    "datetime": a.data.datetime,
-                    "time [s]": a.data["seconds"],
-                    "signal": env,
-                    "label": f"Ch{c} Microwave",
-                }
+        if a.channel_number < 4:
+            a.bandpass_filter(
+                internal_filt[0], internal_filt[1], order=10, overwrite=True
             )
-
-            mo.loc[mo_i(a.data[env > internal_cutoff].datetime), f"ch{c}"] = 1
-
         else:
-            a.resample(8000)
+            spl = acoustics.calculate_spl_dba(a.data.signal, a.sample_rate)
+            spl = normalization.spl_coefficient(spl)
+            if isinstance(external_filt, (int, float)):
+                a.highpass_filter(external_filt, order=10, overwrite=True)
+            else:
+                a.bandpass_filter(
+                    external_filt[0], external_filt[1], order=10, overwrite=True
+                )
+        a.envelope(overwrite=True)
 
-            a.bandpass_filter(50, 300, order=4, overwrite=True)
+        if a.channel_number < 4:
+            n = scaling_i * a.data.signal.median()
+        else:
+            n = scaling_e * a.data.signal.median()
+        # divide a by rms of n
+        a.data.signal = a.data.signal / np.sqrt(np.mean(n**2))
 
-            env = a.envelope()
-            level = 2 * np.median(env)
-            noise = env[env < level]
+        amplitude = []
+        for i, row in a.data.groupby(pd.Grouper(freq="s", key="datetime")):
+            amp = row.signal.max()
+            amplitude.append(amp)
 
-            env = env / np.sqrt(np.mean(noise**2))
+        amplitude = pd.Series(amplitude)
 
-            data.append(
-                {
-                    "datetime": a.data.datetime,
-                    "time [s]": a.data["seconds"],
-                    "signal": env,
-                    "label": f"Ch{c} Microphone" if c == 6 else f"Ch{c} Piezo",
-                }
+        if a.channel_number < 4:
+            internal_signals.append(amplitude)  # Collect internal channel signals
+
+        data[f"channel_{a.channel_number}"] = np.zeros(60, dtype=float)
+        data.loc[amplitude.index, f"channel_{a.channel_number}"] = amplitude
+
+        if a.channel_number < 4:
+            # find indices where indices in list amplitude are greater than IT
+            detections = amplitude[amplitude >= IT]
+        else:
+            detections = amplitude[amplitude >= ET]
+
+        data[f"channel_{a.channel_number}"] = np.zeros(60, dtype=int)
+        data.loc[detections.index, f"channel_{a.channel_number}"] = 1
+
+        if "datetime" not in audio_data.columns:
+            audio_data["datetime"] = a.data.datetime
+        if "seconds" not in audio_data.columns:
+            audio_data["seconds"] = a.data.seconds
+            
+        audio_data[f"channel_{a.channel_number}"] = a.data.signal
+
+    data["internal"] = data[[f"channel_{i}" for i in [0, 1, 2, 3]]].sum(axis=1)
+    data["external"] = data[[f"channel_{i}" for i in [7]]].sum(axis=1)
+    data["detection"] = data.apply(
+        lambda x: detection_algorithm(x["internal"], x["external"], 5), axis=1
+    )
+
+    # Analyze internal signals for uniformity
+    internal_signals_df = pd.DataFrame(internal_signals).T
+    internal_max_channel = internal_signals_df.idxmax(
+        axis=1
+    )  # Channel with strongest signal
+    # internal_std = internal_signals_df.std(axis=1)  # Standard deviation across channels
+
+    # Determine if signals are likely caused by external noise
+    # external_noise_flag = (internal_std < 1).all()  # Example threshold for uniformity
+
+    # Count detections
+    internal = data[data["internal"] > 0].shape[0]
+    external = data[data["external"] > 0].shape[0]
+
+    result = classification_algorithm(data["detection"], DR, NR)
+
+    # if external_noise_flag:
+        # result = "Noise"
+
+    # find the channel with the most detections
+    internal_max_channel = int(internal_max_channel.value_counts().index[0])
+
+    data.attrs["result"] = result
+    data.attrs["internal_max_channel"] = internal_max_channel
+    data.attrs["internal"] = internal
+    data.attrs["external"] = external
+    data.attrs["external_spl"] = float(spl)
+
+    if return_audio:
+        return data, audio_data
+    else: 
+        return data
+
+def acoustic_detection_display(
+   data, audio_data, time_format="datetime", legend="center right"
+):
+    fig, axs = plt.subplots(
+        ncols=1, nrows=6, sharex=True, figsize=(6, 3.5), height_ratios=[1, 1, 1, 1, 1, 1]
+    )
+    # get list of columns that contain "channel_"
+    channels = [col for col in data.columns if col.startswith("channel_")]
+    for i, channel in enumerate(channels):
+        ch = int(channel.split("_")[-1])
+        label = f"Piezoelectric – Ch. {ch}"
+        if data.attrs["result"] == "Insect" and data.attrs["internal_max_channel"] == ch:
+            # make the label bold and underlined
+            label = r"\textbf{\underline{" + str(label) + "}}"
+            
+        if ch == 7:
+            label = f"Microphone – Ch. {ch} ({round(data.attrs['external_spl'], 2)} dBA)"
+
+        ax = axs[i]
+        if time_format == "datetime":
+            ax.plot(
+                audio_data["datetime"],
+                audio_data[channel],
+                label=label,
             )
+        else:
+            ax.plot(audio_data["seconds"], audio_data[channel], label=label)
+        ax.set_xlim(0, 60)
+        ax.set_ylim(0, 20)
+        ax.set_yticks([0, 10, 20])
+        ax.legend(loc=legend, handlelength=0, handletextpad=0, fontsize=8)
 
-            mo.loc[mo_i(a.data[env > external_cutoff].datetime), f"ch{c}"] = 1
+        # Highlight detections
+        detections = data[data[channel] == 1].index
+        for detection in detections:
+            if ch < 4:
+                ax.axvspan(detection, detection + 1, color="red", alpha=0.3)
+            else:
+                ax.axvspan(detection, detection + 1, color="blue", alpha=0.3)            
 
-    mo["internal"] = mo[[f"ch{c}" for c in range(6)]].sum(axis=1)
-    mo["external"] = mo[[f"ch{c}" for c in range(6, 8)]].sum(axis=1)
-    mo["detection"] = mo.apply(
-        lambda x: detection(x.internal, x.external, size=6), axis=1
+    for i, row in data.iterrows(): 
+        if row["detection"] == "Insect":
+            axs[-1].axvspan(i, i + 1, color="red", alpha=0.3)
+        elif row["detection"] == "Noise":
+            axs[-1].axvspan(i, i + 1, color="blue", alpha=0.3)
+        else:
+            axs[-1].axvspan(i, i + 1, color="green", alpha=0.3)
+
+    # TODO update font
+    bold_font = FontProperties(weight="bold", family="Palatino Linotype")
+
+    legend_handles = [
+        Patch(color="red", alpha=1, label="Insect"),
+        Patch(color="green", alpha=1, label="Clean"),
+        Patch(color="blue", alpha=1, label="Noise"),
+    ]
+
+    legend = axs[-1].legend(
+        handles=legend_handles, loc=legend, ncols=3, fontsize=8
     )
 
-    return data, mo
+    for text in legend.get_texts():
+        if text.get_text() == data.attrs["result"]:
+            text.set_fontproperties(bold_font)
+            text.set_text(r"\textbf{\underline{" + text.get_text() + "}}")
+            text.set_fontsize(8)
 
+    axs[-1].set_yticks([])
+    axs[-1].set_ylabel("Detection \n Display", fontsize=8)
 
-# %%
+    # # set the transparency of the legend to 0.5
+    # # axs[-1].legend(loc="upper right", ncols=4)
 
-def detection_display(mo, IDT=26, NDT=13, time_format="datetime", style="minimal", sensor="ASPIDS"):
-    # NDT = round(IDT / 2)
-    data = mo["data"]
-    mo = mo["mo"]
-
-    # if style=="minimal":
-
-    # fig, axs = plt.subplots(nrows=len(data)+1, ncols=1, sharex=True, figsize=(1.5*6, 1.5*6), layout="compressed")
-
-    # fig, axs = plt.subplots(nrows=len(data)+1, ncols=1, sharex=True, figsize=(1.5*11.5, 1.5*4.76), layout="compressed")
-
-    # fig, axs = plt.subplots(nrows=len(data)+1, ncols=1, sharex=True, layout="compressed")
-
-    # mo.datetime = mo.datetime - dt.timedelta(seconds=1)
-    mo = mo[mo.datetime >= data["datetime"].min()]
-    mo = mo[mo.datetime <= data["datetime"].max()]
-
-    internal = data.loc[:, data.columns.str.contains("internal")]
-    external = data.loc[:, data.columns.str.contains("external")]
-
-    internal.columns = internal.columns.str.replace(" internal", "")
-    external.columns = external.columns.str.replace(" external", "")
-
-    if sensor.name == "ASPIDS":
-        fig, axs = plt.subplots(
-            nrows=6,
-            ncols=1,
-            sharex=True,
-            # layout="compressed",
-            figsize=(6, 4.15),
-        )  # mdpi
-    if sensor.name == "MSPIDS":
-        fig, axs = plt.subplots(
-            nrows=7,
-            ncols=1,
-            sharex=True,
-            layout="compressed",
-            figsize=(6, (5.6 / 1.6180) * (4 / 2)),
-        )
-
-    for i in range(len(internal.columns)):
-        ax = axs[i]
-        row = internal.iloc[:, i]
-
-        s_ds = MinMaxLTTBDownsampler().downsample(data["datetime"], row, n_out=1000)
-
-        if time_format == "datetime":
-            ax.plot(data["datetime"].values[s_ds], row.values[s_ds])
-            eligble = mo[mo[row.name] == 1].datetime
-            width = 1.1574074074074075e-05
-        else:
-            ax.plot(data["seconds"].values[s_ds], row.values[s_ds])
-            eligble = mo[mo[row.name] == 1]["seconds"]
-            width = 1
-
-        ax.bar(
-            eligble,
-            height=10,
-            width=width,
-            color="red",
-            align="center",
-            bottom=90,
-            clip_on=True,
-            zorder=10,
-        )
-        # ax.bar(eligble, height=10, width=width, color="red", align="center", bottom=90, clip_on=True, zorder=10)
-        ax.set_ylabel(f"Ch. {i}")
-
-    if sensor.name == "ASPIDS":
-        ax = axs[i + 1]
-        row = external.iloc[:, 3]
-        s_ds = MinMaxLTTBDownsampler().downsample(data["datetime"], row, n_out=1000)
-        if time_format == "datetime":
-            ax.plot(data["datetime"][s_ds], row[s_ds])
-            eligble = mo[mo[row.name] == 1].datetime
-            width = 1.1574074074074075e-05
-        else:
-            ax.plot(data["seconds"][s_ds], row[s_ds])
-            eligble = mo[mo[row.name] == 1]["seconds"]
-            width = 1
-
-        ax.bar(
-            eligble,
-            height=10,
-            width=width,
-            color="blue",
-            align="center",
-            bottom=90,
-            clip_on=True,
-            zorder=10,
-        )
-        # ax.bar(eligble, height=10, width=width, color="blue", align="center", bottom=90, clip_on=True, zorder=10)
-        ax.set_ylabel("Mic.")
-
-    for i in range(len(axs) - 1):
-        ax = axs[i]
-        ax.yaxis.set_label_position("right")
-        # ax.set_ylim([0, 100])
-        # ax.set_yticks([0, 50, 100])
-        ax.set_ylim(0, 100)
-        ax.set_yticks([0, 50, 100])
-
-        if time_format == "datetime":
-            myFmt = mdates.DateFormatter("%H:%M:%S")
-            ax.xaxis.set_major_formatter(myFmt)
-            ax.xaxis.set_minor_locator(mdates.SecondLocator(interval=1))
-            ax.set_xlim([min(data["datetime"]), max(data["datetime"])])
-        else:
-            ax.set_xlim([min(data["seconds"]), round(max(data["seconds"]))])
-
-    # for i in range(len(data)):
-    #     ax = axs[i]
-    #     row = data[i]
-
-    #     s_ds = MinMaxLTTBDownsampler().downsample(row["datetime"], row["signal"], n_out = 1000)
-
-    #     if method == "datetime":
-    #         ax.plot(row["datetime"][s_ds], row["signal"][s_ds])
-    #         eligble = mo[mo[f"{row['label'][:3].lower()}"] == 1].datetime
-    #         width = 1.1574074074074075e-05
-    #     else:
-    #         ax.plot(row["seconds"][s_ds], row["signal"][s_ds])
-    #         eligble = mo[mo[f"{row['label'][:3].lower()}"] == 1]["seconds"]
-    #         width = 1
-
-    #     if "Microphone" in row["label"]:
-    #         ax.bar(eligble, height=1, width=width, color="blue", align="center", bottom=19, clip_on=True, zorder=10)
-    #         # ax.scatter(eligble, [20]*len(eligble), marker="s", c="blue", s=10, alpha=1, clip_on=False, zorder=10)
-    #     elif row["label"] == "Ch7 Piezo":
-    #         ax.bar(eligble, height=1, width=width, color="blue", align="center", bottom=19, clip_on=True, zorder=10)
-    #         # ax.scatter(eligble, [20]*len(eligble), marker="s", c="blue", s=10, alpha=1, clip_on=False, zorder=10)
-    #     else:
-    #         # ax.scatter(eligble, [20]*len(eligble), marker="s", c="red", s=10, alpha=1, clip_on=False, zorder=10)
-    #         ax.bar(eligble, height=1, width=width, color="red", align="center", bottom=19, clip_on=True, zorder=10)
-
-    #     # ax.plot(row["datetime"], row["signal"])
-    #     ax.set_ylabel(row["label"], rotation=0, horizontalalignment='left')
-    #     ax.yaxis.set_label_position("right")
-    #     ax.set_ylim([0, 20])
-    #     ax.set_yticks([0, 10, 20])
-
-    #     if method == "datetime":
-    #         myFmt = mdates.DateFormatter('%H:%M:%S')
-    #         ax.xaxis.set_major_formatter(myFmt)
-    #         ax.xaxis.set_minor_locator(mdates.SecondLocator(interval=1))
-    #         ax.set_xlim([min(row["datetime"]), max(row["datetime"])])
-    #     else:
-    #         # ax.set_xlim([round(row[""].min()), round(times.max())])
-    #         ax.set_xlim([min(row["seconds"]), round(max(row["seconds"]))])
-
-    #     ax.get_yaxis().set_label_coords(1.01, 0.6)
-
-    ax = axs[-1]
-    hits = mo[mo["detection"] == "Detection"]
-    false_flags = mo[mo["detection"] == "Noise"]
-    clean = mo[mo.detection.isna()]
-
-    if time_format == "datetime":
-        ax.bar(
-            clean.datetime,
-            height=1,
-            width=width,
-            color="green",
-            align="center",
-            clip_on=True,
-            zorder=1,
-        )
-        ax.bar(
-            hits.datetime,
-            height=1,
-            width=width,
-            color="red",
-            align="center",
-            clip_on=True,
-            zorder=2,
-        )
-        ax.bar(
-            false_flags.datetime,
-            height=1,
-            width=width,
-            color="blue",
-            align="center",
-            clip_on=True,
-            zorder=3,
-        )
-    elif time_format == "seconds":
-        ax.bar(
-            clean.index.tolist(),
-            height=1,
-            width=width,
-            color="green",
-            align="center",
-            clip_on=True,
-            zorder=1,
-        )
-        ax.bar(
-            hits.index.tolist(),
-            height=1,
-            width=width,
-            color="red",
-            align="center",
-            clip_on=True,
-            zorder=2,
-        )
-        ax.bar(
-            false_flags.index.tolist(),
-            height=1,
-            width=width,
-            color="blue",
-            align="center",
-            clip_on=True,
-            zorder=3,
-        )
-
-    # ax.scatter(hits.datetime, [1]*len(hits), s=10, c="green", marker="s")
-    # ax.scatter(false_flags.datetime, [1]*len(false_flags), s=10, c="red", marker="s")
-    ax.set_ylim([0, 1])
-    ax.set_yticklabels([])
-    ax.set_yticks([])
-    fig.align_ylabels()
-    ax.yaxis.set_label_position("right")
-
-    if time_format == "datetime":
-        fig.supxlabel(f"Time on {data['datetime'][0].date()}")
-    else:
-        fig.supxlabel("Time [s]")
-
-    fig.supylabel("Relative Normalized Amplitude")
-
-    ax = axs[0]
-
-    values = mo["detection"].value_counts()
-    if "Noise" in values.index and values["Noise"] >= NDT:
-        text = "Noise"
-        color = "blue"
-    elif "Detection" in values.index and values["Detection"] >= IDT:
-        text = "Infested"
-        color = "red"
-    else:
-        text = "Clean"
-        color = "green"
-    # check number of detections in the detection column
-
-    ax.add_patch(
-        Rectangle(
-            (0, 150),
-            len(mo) - 1,
-            100,
-            facecolor=color,
-            clip_on=False,
-            linewidth=1,
-            edgecolor="black",
-            fill=True,
-        )
-    )
-    ax.text(
-        (len(mo) - 1) / 2,
-        200,
-        text,
-        fontsize=18,
-        zorder=5,
-        color="white",
-        horizontalalignment="center",
-        verticalalignment="center_baseline",
-        fontweight="bold",
-    )
-
-    # ax.add_patch(Rectangle((0,150), 60, 100,facecolor=color,
-    #                           clip_on=False,linewidth = 1, edgecolor="black", fill=True))
-    # ax.text(30, 200, text, fontsize = 20 ,zorder = 5, fontweight="extra bold", fontstretch="ultra-expanded",
-    #             color = 'white', horizontalalignment="center", verticalalignment="center_baseline")
+    # # set figure x-axis label
+    fig.supxlabel("Time [s]", fontsize=10)
+    fig.supylabel("Normalized Amplitude", fontsize=10)
 
     return fig, axs
+    # channels = [sensor.channels[i] for i in [0, 1, 2, 3, 7]]
+    # axs = axs.flatten()
+
+    # data = pd.DataFrame()
+
+    # max_channel = None
+    # for i, channel in enumerate(channels):
+    #     ax = axs[i]
+    #     a = db.get_audio(
+    #         start=start,
+    #         end=start + timedelta(seconds=duration),
+    #         sensor=sensor,
+    #         channel_number=channel.channel_number,
+    #     )
+
+    #     a.fade_in(1, overwrite=True)
+    #     a.fade_out(1, overwrite=True)
+
+    #     if channel.channel_number < 4:
+    #         a.bandpass_filter(
+    #             internal_filt[0], internal_filt[1], order=10, overwrite=True
+    #         )
+    #     else:
+    #         spl = acoustics.calculate_spl_dba(a.data.signal, a.sample_rate)
+    #         spl = normalization.spl_coefficient(spl)
+
+    #         a.highpass_filter(external_filt, order=10, overwrite=True)
+    #         # a.bandpass_filter(2000, 6000, order=10, overwrite=True)
+
+    #     a.envelope(overwrite=True)
+
+    #     if channel.channel_number < 4:
+    #         n = scaling_i * a.data.signal.median()
+    #     else:
+    #         n = scaling_e * a.data.signal.median()
+    #     # divide a by rms of n
+    #     a.data.signal = a.data.signal / np.sqrt(np.mean(n**2))
+
+    #     # a = normalization.noise_normalize(a, channel=channel)
+
+    #     amplitude = []
+    #     for i, row in a.data.groupby(pd.Grouper(freq="s", key="datetime")):
+    #         amp = row.signal.max()
+    #         amplitude.append(amp)
+
+    #     amplitude = pd.Series(amplitude)
+
+    #     if channel.channel_number < 4:
+    #         ax.plot(a.data.seconds, a.data.signal, label=f"Ch. {channel.channel_number}")
+    #     else:
+    #         ax.plot(
+    #             a.data.seconds,
+    #             a.data.signal,
+    #             label=f"Ch. {channel.channel_number} - {round(spl, 2)} [dBA]",
+    #         )
+
+    #     ax.legend(loc="center right", handlelength=0, handletextpad=0, fontsize=8)
+    #     ax.set_xlim(0, 60)
+    #     ax.set_ylim(0, 20)
+    #     ax.set_yticks([0, 10, 20])
+
+    #     if channel.channel_number < 4:
+    #         # find indices where indices in list amplitude are greater than IT
+    #         detections = amplitude[amplitude >= IT]
+    #         for detection in detections.index:
+    #             ax.axvspan(detection, detection + 1, color="red", alpha=0.3)
+
+    #     else:
+    #         detections = amplitude[amplitude >= ET]
+    #         for detection in detections.index:
+    #             ax.axvspan(detection, detection + 1, color="blue", alpha=0.3)
+
+    #     data[f"channel_{channel.channel_number}"] = [0] * 60
+    #     data.loc[detections.index, f"channel_{channel.channel_number}"] = 1
+    # data["internal"] = data[[f"channel_{i}" for i in [0, 1, 2, 3]]].sum(axis=1)
+    # data["external"] = data[[f"channel_{i}" for i in [7]]].sum(axis=1)
+    # # find which column (channel_{i}) has the maximum sum
+    # max_channel = int(
+    #     data[[f"channel_{i}" for i in [0, 1, 2, 3]]].sum(axis=0).idxmax().split("_")[-1]
+    # )
+    # ax[max_channel]
+
+    # data["detection"] = data.apply(
+    #     lambda x: detection_algorithm(x["internal"], x["external"], 5), axis=1
+    # )
+    # result = classification_algorithm(data["detection"], DR, NR)
+
+    # i_c = 0
+    # n_c = 0
+    # g_c = 0
+    # for i, row in data.iterrows():
+    #     if row["detection"] == "Insect":
+    #         if i_c == 0:
+    #             axs[-1].axvspan(i, i + 1, color="red", alpha=0.3)
+    #             i_c = 1
+    #         else:
+    #             axs[-1].axvspan(i, i + 1, color="red", alpha=0.3)
+    #     elif row["detection"] == "Noise":
+    #         if n_c == 0:
+    #             axs[-1].axvspan(i, i + 1, color="blue", alpha=0.3)
+    #             n_c = 1
+    #         else:
+    #             axs[-1].axvspan(i, i + 1, color="blue", alpha=0.3)
+    #     else:
+    #         if g_c == 0:
+    #             axs[-1].axvspan(i, i + 1, color="green", alpha=0.3)
+    #             g_c = 1
+    #         else:
+    #             axs[-1].axvspan(i, i + 1, color="green", alpha=0.3)
+
+    # bold_font = FontProperties(weight="bold", family="Palatino Linotype")
+
+    # legend_handles = [
+    #     Patch(color="red", alpha=1, label="Insect"),
+    #     Patch(color="green", alpha=1, label="Clean"),
+    #     Patch(color="blue", alpha=1, label="Noise"),
+    # ]
+
+    # legend = axs[-1].legend(
+    #     handles=legend_handles, loc="center right", ncols=4, fontsize=8
+    # )
+
+    # for text in legend.get_texts():
+    #     if text.get_text() == result:
+    #         text.set_fontproperties(bold_font)
+    #         text.set_text(r"\textbf{\underline{" + text.get_text() + "}}")
+    #         text.set_fontsize(8)
+
+    # # remove the y-axis ticks from the last plot
+    # # add label to the legend for hte last plot
+    # # set the y-label for the last plot to say "Detection Display"
+    # axs[-1].set_yticks([])
+    # axs[-1].set_ylabel("Detection \n Display", fontsize=8)
+
+    # # set the transparency of the legend to 0.5
+    # # axs[-1].legend(loc="upper right", ncols=4)
+
+    # # set figure x-axis label
+    # fig.supxlabel("Time [s]", fontsize=10)
+    # fig.supylabel("Normalized Amplitude", fontsize=10)
+
+    # return fig, axs
+# %%
