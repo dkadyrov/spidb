@@ -1,28 +1,27 @@
 # %%
+import datetime
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from scipy import signal
-from dankpy import color as co
+from dankpy import color
 from spidb import spidb, normalization
 from dankpy import acoustics
 from sqlalchemy import or_
 
-
-# %%
+#%%
 def waveform_display(
-    db,
-    start,
-    end,
-    sensor,
-    time_format="datetime",
-    normalize=True,
-    compressed=False,
-    envelope=False,
-    filter=[500, 6000],
-    external_spl=False,
-    size=(6, 3.25),
+    db:spidb.Database,
+    start:datetime.datetime,
+    end:datetime.datetime,
+    sensor:spidb.Sensor,
+    time_format:str="datetime",
+    normalize:str="median",
+    envelope:bool=False,
+    filter:list[float, float]=[500.0, 6000.0],
+    external_spl:bool=False,
+    size:tuple[float, float]=(6.0, 3.25),
 ):
     # if compressed:
     fig, axs = plt.subplots(nrows=5, ncols=1, sharex=True, figsize=size)
@@ -41,7 +40,7 @@ def waveform_display(
                 label = f"Ch. {c.number} - Piezoelectric"
             else:
                 if external_spl:
-                    spl = acoustics.calculate_spl_dba(a.data.signal, a.sample_rate)
+                    spl = normalization.calculate_spl(a.data.signal)
                     spl = normalization.spl_coefficient(spl)
                     label = f"Ch. {c.number} - Microphone (SPL {spl:.2f} dBA)"
                 else:
@@ -57,15 +56,15 @@ def waveform_display(
         if filter:
             if sensor.subname == "A-SPIDS":
                 if c.number < 4:
-                    a.bandpass_filter(500, 6000, order=10, overwrite=True)
+                    a.bandpass_filter(filter[0], filter[1], order=10, overwrite=True)
                 else:
-                    a.bandpass_filter(500, 6000, order=10, overwrite=True)
+                    a.bandpass_filter(filter[0], filter[1], order=10, overwrite=True)
                     # a.highpass_filter(500, order=10, overwrite=True)
             else:
                 if c.number < 6:
-                    a.lowpass_filter(100, order=10, overwrite=True)
+                    a.lowpass_filter(filter[0], order=10, overwrite=True)
                 else:
-                    a.highpass_filter(500, order=10, overwrite=True)
+                    a.highpass_filter(filter[0], order=10, overwrite=True)
 
         if envelope:
             a.envelope(overwrite=True)
@@ -74,10 +73,10 @@ def waveform_display(
             if sensor.subname == "A-SPIDS":
                 if normalize == "median":
                     a = normalization.median_normalize(
-                        a, filter="bandpass", low=500, high=6000, ratio=4
+                        a, filter="bandpass", low=filter[0], high=filter[1], ratio=4
                     )
                 if normalize == "noise":
-                    a = normalization.noise_normalize(a, channel=c)
+                    a = normalization.noise_normalize(db, a, channel=c, filter="bandpass", low=filter[0], high=filter[1])
 
             if sensor.subname == "M-SPIDS":
                 if c < 6:
@@ -196,10 +195,10 @@ def spectrogram_display(
                 axi.set_clim([zmin, zmax])
                 # add a blank line to the plot to add a label to the legend
                 ax.plot(
-                    [], [], "", label=f"Piezoelectric - Ch. {c}"
+                    [], [], "", label=f"Ch. {c} (Piezoelectric)"
                 )  # this wasn't blank
                 ax.legend(
-                    loc="upper right", handlelength=0, handletextpad=0
+                    loc="center right", handlelength=0, handletextpad=0, fontsize=8,
                 )
                 # ax.set_ylabel(f"Ch. {c}")
                 # ax.yaxis.set_label_position("right")
@@ -298,24 +297,24 @@ def spectrogram_display(
                 # add a blank line to the plot to add a label to the legend
                 if channel < 4:
                     ax.plot(
-                        [], [], "", label=f"Piezoelectric - Ch. {channel}"
+                        [], [], "", label=f"Ch. {channel} (Piezoelectric)"
                     )  # this wasn't blank
                 else:
                     if external_spl:
-                        spl = acoustics.calculate_spl_dba(a.data.signal, a.sample_rate)
+                        spl = normalization.calculate_spl(a.data.signal)
                         spl = normalization.spl_coefficient(spl)
                         ax.plot(
                             [],
                             [],
                             "",
-                            label=f"Microphone - Ch. {channel} ({round(spl, 2)} dBA)",
+                            label=f"Ch. {channel} (Microphone, {round(spl, 2)} dBA)",
                         )  # this wasn't blank
                     else:
                         ax.plot(
-                            [], [], "", label=f"Microphone - Ch. {channel}"
+                            [], [], "", label=f"Ch. {channel} (Microphone)"
                         )  # this wasn't blank
 
-                ax.legend(loc="center right", handlelength=0, handletextpad=0)
+                ax.legend(loc="upper right", handlelength=0, handletextpad=0)
     else:
         if sensor.subname == "A-SPIDS":
             fig, axs = plt.subplots(
@@ -418,9 +417,9 @@ def spectrogram_display(
         # ax.set_xlim([round(times.min()), round(times.max())])  # redundant
 
     if time_format == "datetime":
-        fig.supxlabel(f"Time on {a.data.datetime[0].date()}")
+        fig.supxlabel(f"Time on {a.data.datetime[0].date()}", fontsize=10)
     else:
-        fig.supxlabel("Time [s]")
+        fig.supxlabel("Time [s]", fontsize=10)
 
     # --- Colorbar placement fix ---
     # Use the last 'axi' for colorbar, and attach to all axes
@@ -442,36 +441,19 @@ def spectrogram_display(
             aspect=50,  # uncomment this line
             ticks=[zmin, round(zmin + (zmax - zmin) / 2), zmax],  # uncomment this line
         )
-        cbar.ax.set_ylabel("Power [dB]")
-    fig.supylabel("Frequency [Hz]")
+        cbar.ax.set_ylabel("Power [dB]", fontsize=10)
+    fig.supylabel("Frequency [Hz]", fontsize=10)
 
     return fig, axs
 
 
-def spectra_display(db, start, end, sensor, section="all", spl=False):
+def spectra_display(audios, spl=False, colors=None):
     fig, ax = plt.subplots()
 
-    if section == "all":
-        channels = np.arange(0, 8).tolist()
-    elif section == "internal":
-        if sensor.subname == "A-SPIDS":
-            channels = np.arange(0, 4).tolist()
-        else:
-            channels = np.arange(0, 6).tolist()
-    elif section == "external":
-        if sensor.subname == "A-SPIDS":
-            channels = np.arange(4, 8).tolist()
-        else:
-            channels = np.arange(6, 8).tolist()
-    elif isinstance(section, list):
-        channels = section
-    else:
-        # Default to all channels if section is not recognized
-        channels = np.arange(0, 8).tolist()
+    if colors is None:
+        colors = color.colors
 
-    for i, c in enumerate(channels):
-        a = db.get_audio(start, end, channel_number=c, sensor=sensor)
-
+    for i, a in enumerate(audios):
         a.fade_in(fade_time=1, overwrite=True)
         a.fade_out(fade_time=1, overwrite=True)
 
@@ -486,31 +468,18 @@ def spectra_display(db, start, end, sensor, section="all", spl=False):
             scaling="spectrum",
         )
 
-        if sensor.subname == "A-SPIDS":
-            if section == "internal" or section == "external":
-                color = co.colors[i]
-            else:
-                if c < 4:
-                    color = "black"
-                else:
-                    color = "red"
-        else:
-            if c < 6:
-                color = "black"
-            else:
-                color = "red"
-
         p = 10 * np.log10(p)
 
-        if c == 7 and spl:
+        if a.channel_number == 7 and spl:
             spl = acoustics.calculate_spl_dba(a.data.signal, a.sample_rate)
             spl = normalization.spl_coefficient(spl)
-            ax.plot(f, p, label=f"Ch. {c} ({spl:.2f} dBA)", c=color)
+            ax.plot(f, p, label=f"Ch. {a.channel_number} ({spl:.2f} dBA)", c=colors[i])
         else:
-            ax.plot(f, p, label=f"Ch. {c}", c=color)
+            ax.plot(f, p, label=f"Ch. {a.channel_number}", c=colors[i])
 
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Spectral Power [dB]")
-    ax.legend(loc="upper right", ncols=len(channels))
+    ax.legend(loc="upper right", ncols=len(audios))
 
     return fig, ax
+

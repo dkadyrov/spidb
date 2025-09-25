@@ -1,4 +1,3 @@
-#%%
 from sonicdb import audio, utilities
 import numpy as np
 import pandas as pd
@@ -6,6 +5,7 @@ from scipy import signal
 from copy import deepcopy
 from spidb import spidb
 from sqlalchemy.orm import object_session
+
 noise_data = [
     dict(
         start=utilities.read_datetime("2023-05-31 17:32:00"),
@@ -26,9 +26,17 @@ correction_coefficients = [1.014732897991385, 1.0180935308718362, 1.011135322990
 # def spl_coefficient(spl, m=0.9295575436489893, b=32.81146264832007): 
     # return m * spl + b
 
-def spl_coefficient(spl, m=1.5078675371343309, b=-1.3239939533445408): 
+# def spl_coefficient(spl, m=1.5078675371343309, b=-1.3239939533445408): 
+    # return m * spl + b
+
+def spl_coefficient(spl, m=3.1186973178682558, b=176.40916669256114):
     return m * spl + b
 
+def calculate_spl(signal):
+    rms = np.sqrt(np.mean(signal**2))
+    spl = 20 * np.log10(rms)
+
+    return spl
 
 def reference_signal(db, sensor, channels=[0, 1, 2, 3]):
     sensor = db.get_sensor(sensor)
@@ -63,6 +71,7 @@ def reference_signal(db, sensor, channels=[0, 1, 2, 3]):
     
     # Average the across the channels
     reference["average"] = reference.iloc[:, 1:].mean(axis=1)
+    reference["frequency"] = f
 
     return reference
 
@@ -138,7 +147,7 @@ def noise_spl(db, sensor, channel):
 
     return spl
 
-def noise_normalize(a:audio.Audio, channel:spidb.models.Channel, filter="bandpass", low=500, high=6000) -> audio.Audio:
+def noise_normalize(db, a:audio.Audio, channel:spidb.models.Channel, filter="bandpass", low=500, high=6000, coefficient="set") -> audio.Audio:
     """
     Normalize the audio signal by the noise level.
 
@@ -149,8 +158,8 @@ def noise_normalize(a:audio.Audio, channel:spidb.models.Channel, filter="bandpas
     Returns:
         sonicdb.Audio: the normalized audio signal
     """
-    if channel.gain == 0 or channel.gain is None: 
-        coefficient = noise_coefficient(channel.sensor, channel, filter, low, high, order)
+    if channel.gain == 0 or channel.gain is None or coefficient=="set": 
+        coefficient = noise_coefficient(db, channel.sensor, channel, filter, low, high, 10)
     else:
         coefficient = channel.gain
 
@@ -218,11 +227,11 @@ def calculate_nsel(audio, filter="bandpass", low=None, high=None, channel=None, 
 
     return snr
 
-def calculate_nspa(audio, filter="bandpass", low=None, high=None, normalize="noise", channel=None, ratio=None):
+def calculate_nspa(audio, filter="bandpass", low=None, high=None, normalize="noise", channel=None, ratio=None, db=None):
     a = deepcopy(audio)
 
     if normalize == "noise":
-        a = noise_normalize(a, channel)
+        a = noise_normalize(db, a, channel, filter="bandpass", low=low, high=high, coefficient="set")
     elif normalize == "median":
         a = median_normalize(a, channel, ratio)
 

@@ -84,13 +84,14 @@ def acoustic_detection(
     channels,
     IT=5,
     ET=5,
-    DR=30,
+    DR=30,  
     NR=30,
     internal_filt=[1625, 5400],
     external_filt=[1625, 5400],
     scaling_i=2,
     scaling_e=2,
-    return_audio = False
+    return_audio=False,
+    db=None,
 ):
     data = pd.DataFrame()
     internal_signals = []
@@ -109,7 +110,7 @@ def acoustic_detection(
                 internal_filt[0], internal_filt[1], order=10, overwrite=True
             )
         else:
-            spl = acoustics.calculate_spl_dba(a.data.signal, a.sample_rate)
+            spl = normalization.calculate_spl(a.data.signal) #.calculate_spl_dba(a.data.signal, a.sample_rate)
             spl = normalization.spl_coefficient(spl)
             if isinstance(external_filt, (int, float)):
                 a.highpass_filter(external_filt, order=10, overwrite=True)
@@ -125,6 +126,18 @@ def acoustic_detection(
             n = scaling_e * a.data.signal.median()
         # divide a by rms of n
         a.data.signal = a.data.signal / np.sqrt(np.mean(n**2))
+
+
+        # if a.channel_number < 4:
+        # channel = db.session.get(spidb.Sensor, 1).channels[a.channel_number]
+
+        # a = normalization.noise_normalize(db, a, channel=channel, filter="bandpass", low=internal_filt[0], high=internal_filt[1], coefficient="set")
+        # else:
+        #     a = normalization.noise_normalize(a, channel=a.channel_number, filter="highpass", low=external_filt if isinstance(external_filt, (int, float)) else external_filt[0], coefficient="set")
+
+        # coef =  normalization.noise_coefficient(db, channel.sensor, channel, "bandpass", internal_filt[0], internal_filt[1], order=10)
+
+        # a.data.signal = a.data.signal / coef
 
         amplitude = []
         for i, row in a.data.groupby(pd.Grouper(freq="s", key="datetime")):
@@ -195,23 +208,32 @@ def acoustic_detection(
         return data
 
 def acoustic_detection_display(
-   data, audio_data, time_format="datetime", legend="center right"
+   data, audio_data, time_format="datetime", legend="center right", spl=True, latex=True
 ):
     fig, axs = plt.subplots(
         ncols=1, nrows=6, sharex=True, figsize=(6, 3.5), height_ratios=[1, 1, 1, 1, 1, 1]
     )
     # get list of columns that contain "channel_"
     channels = [col for col in data.columns if col.startswith("channel_")]
+
+    bold_font = FontProperties(weight="bold")
+    
     for i, channel in enumerate(channels):
         ch = int(channel.split("_")[-1])
-        label = f"Piezoelectric – Ch. {ch}"
+        label = f"Piezoelectric - Ch. {ch}"
         if data.attrs["result"] == "Insect" and data.attrs["internal_max_channel"] == ch:
             # make the label bold and underlined
-            label = r"\textbf{\underline{" + str(label) + "}}"
-            
-        if ch == 7:
-            label = f"Microphone – Ch. {ch} ({round(data.attrs['external_spl'], 2)} dBA)"
+            if latex:
+                label = r"\textbf{\underline{" + str(label) + "}}"
+            else:
+                # make the label bold and underlined with the bold_font property
+                label = f"{label} (max)"
 
+        if ch == 7:
+            if spl:
+                label = f"Microphone - Ch. {ch} ({round(data.attrs['external_spl'], 2)} dBA)"
+            else:
+                label = f"Microphone - Ch. {ch}"
         ax = axs[i]
         if time_format == "datetime":
             ax.plot(
@@ -222,9 +244,9 @@ def acoustic_detection_display(
         else:
             ax.plot(audio_data["seconds"], audio_data[channel], label=label)
         ax.set_xlim(0, 60)
-        ax.set_ylim(0, 20)
-        ax.set_yticks([0, 10, 20])
-        ax.legend(loc=legend, handlelength=0, handletextpad=0, fontsize=8)
+        ax.set_ylim(0, 100)
+        ax.set_yticks([0, 50, 100])
+        ax.legend(loc=legend, handlelength=0, handletextpad=0)
 
         # Highlight detections
         detections = data[data[channel] == 1].index
@@ -243,7 +265,7 @@ def acoustic_detection_display(
             axs[-1].axvspan(i, i + 1, color="green", alpha=0.3)
 
     # TODO update font
-    bold_font = FontProperties(weight="bold", family="Palatino Linotype")
+
 
     legend_handles = [
         Patch(color="red", alpha=1, label="Insect"),
@@ -252,24 +274,28 @@ def acoustic_detection_display(
     ]
 
     legend = axs[-1].legend(
-        handles=legend_handles, loc=legend, ncols=3, fontsize=8
+        handles=legend_handles, loc=legend, ncols=3
     )
 
     for text in legend.get_texts():
         if text.get_text() == data.attrs["result"]:
-            text.set_fontproperties(bold_font)
-            text.set_text(r"\textbf{\underline{" + text.get_text() + "}}")
-            text.set_fontsize(8)
+            if latex: 
+                text.set_fontproperties(bold_font)
+                text.set_text(r"\textbf{\underline{" + text.get_text() + "}}")
+            else:
+                text.set_fontproperties(bold_font)
+                text.set_text(f"{text.get_text()}")
+            # text.set_fontsize(10)
 
     axs[-1].set_yticks([])
-    axs[-1].set_ylabel("Detection \n Display", fontsize=8)
+    axs[-1].set_ylabel("Detection \n Display", fontsize=10)
 
     # # set the transparency of the legend to 0.5
     # # axs[-1].legend(loc="upper right", ncols=4)
 
     # # set figure x-axis label
-    fig.supxlabel("Time [s]", fontsize=10)
-    fig.supylabel("Normalized Amplitude", fontsize=10)
+    fig.supxlabel("Time [s]")
+    fig.supylabel("Normalized Amplitude")
 
     return fig, axs
     # channels = [sensor.channels[i] for i in [0, 1, 2, 3, 7]]

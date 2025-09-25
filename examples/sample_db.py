@@ -2,7 +2,7 @@
 from spidb import spidb 
 from datetime import timedelta 
 
-db = spidb.Database(r"data/spi.db")
+db = spidb.Database(r"data/spi_2m.db")
 
 #%%
 
@@ -14,7 +14,7 @@ records =db.session.query(spidb.Record).all()
 # ]
 
 #%
-duration = 60 
+duration = 120 
 
 for record in records:
     start = record.start
